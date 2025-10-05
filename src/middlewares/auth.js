@@ -2,12 +2,14 @@ import jwt from 'jsonwebtoken'
 
 const auth = (req, res, next) => {
     // Get token from custom header used by client
-    const token = req.header('x-auth-token');
+    const authHeader = req.header('Authorization');
 
+    if(!authHeader) return res.status(401).json({msg : 'No token, authorization denied'});
+
+    const token = authHeader.replace('Bearer ', '');
     if(!token) return res.status(401).json({msg : 'No token, authorization denied'});
-
     try {
-        // /verify token using jwt_secret to check signature and expiration
+        // verify token using jwt_secret to check signature and expiration
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
         // attach decoded user data (id and role) to request obejct
@@ -18,3 +20,5 @@ const auth = (req, res, next) => {
         res.status(401).json({msg : 'Token is not valid'});
     }
 };
+
+export default auth;

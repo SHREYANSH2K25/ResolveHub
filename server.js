@@ -2,7 +2,7 @@ import 'dotenv/config'
 import express from 'express'
 import mongoose from 'mongoose'
 import authRoutes from './src/routes/auth.js'
-
+import complaintRoutes from './src/routes/complaints.js'
 const app = express();
 
 // Database connection
@@ -23,7 +23,7 @@ app.use(express.json());
 
 //Define routes
 app.use('/api/auth', authRoutes);
-
+app.use('/api/complaints', complaintRoutes);
 // Root route
 app.get('/', (req, res) => 
     res.send("ResolveHub is running...")

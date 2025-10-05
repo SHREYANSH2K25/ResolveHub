@@ -3,7 +3,8 @@ import auth from "../middlewares/auth.js"
 import upload from "../middlewares/fileUpload.js"
 import cloudinary from "../config/cloudinaryConfig.js"
 import { runTriageandAssign } from "../services/triageService.js"
-import {Complaint} from "../models/Complaints.js"
+import {geocodeLocation} from "../services/geoCodingService.js"
+import {Complaint} from "../models/Complaint.js"
 
 const router = express.Router();
 
@@ -21,18 +22,19 @@ const bufferToDataUri = (file) =>{
 */
 
 router.post('/', auth, upload, async(req, res) => {
-    const {title, description, coordinates} = req.body;
-
+    const {title, description, rawAddress} = req.body;
+    let finalCoordinates = null;
     let mediaUrls = [];
     let category = null;
     let assignedToId = null;
 
     // basic validation
-    if(!title || !description || !coordinates || coordinates.length !== 2) {
-        return res.status(400).json ({msg : 'Please include title, description and valid coordinates'})
+    if(!title || !description || !rawAddress) {
+        return res.status(400).json ({msg : 'Please include title, description and valid address.'})
     }
 
-    try {
+    try {  
+        finalCoordinates = await geocodeLocation(rawAddress);
         // handle multiple file uploads to cloudinary
         if(req.files && req.files.length > 0) {
 
@@ -65,7 +67,7 @@ router.post('/', auth, upload, async(req, res) => {
             description,
             category : category,
             assignedTo : assignedToId,
-            location : {type : 'Point', coordinates : coordinates},
+            location : {type : 'Point', coordinates : finalCoordinates},
             mediaUrls : mediaUrls,  // Save the array of secure cloudinry urls
             status : 'OPEN'  // initiates the transparent complaint lifestyle
         })
@@ -76,8 +78,8 @@ router.post('/', auth, upload, async(req, res) => {
 
     }
     catch(err){
-        console.error('Submission error : ', err);
-        res.status(500).json({msg : 'Server error during upload'});
+        console.error('Submission error : ', err.message || err);
+        res.status(500).json({msg : err.message || 'Server error during upload'});
     }
 })
 

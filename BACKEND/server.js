@@ -1,9 +1,9 @@
 import 'dotenv/config'
 import express from 'express'
 import mongoose from 'mongoose'
-import authRoutes from './src/routes/auth.js'
-import complaintRoutes from './src/routes/complaints.js'
-import adminRoutes from './src/routes/admin.js'
+import authRoutes from '../src/routes/auth.js'
+import complaintRoutes from '../src/routes/complaints.js'
+import adminRoutes from '../src/routes/admin.js'
 const app = express();
 
 // Database connection

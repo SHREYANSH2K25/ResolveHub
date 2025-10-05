@@ -10,6 +10,12 @@ const UserSchema = new mongoose.Schema({
         required : true,
         unique : true
     },
+    phone: { 
+        type: String,
+        required: false, // Make it optional, but recommended for notifications
+        unique: true,
+        sparse: true 
+    },
     password : {
         type : String,
         required : true

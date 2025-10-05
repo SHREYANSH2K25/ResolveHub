@@ -5,7 +5,8 @@ import cloudinary from "../config/cloudinaryConfig.js"
 import { runTriageandAssign } from "../services/triageService.js"
 import {geocodeLocation} from "../services/geoCodingService.js"
 import {Complaint} from "../models/Complaint.js"
-
+import authorize from '../middlewares/rbac.js'
+import { notifyCitizenOfStatusChange } from "../services/notificationService.js"
 const router = express.Router();
 
 // helper to convert bufer(binary data) to string for cloudianry to accept
@@ -82,5 +83,94 @@ router.post('/', auth, upload, async(req, res) => {
         res.status(500).json({msg : err.message || 'Server error during upload'});
     }
 })
+
+
+// Citizen Tracking (History of Complaints)
+router.get('/history', auth, authorize('citizen'), async(req, res) => {
+    try {
+
+        // submittedBy id must match id we get by JWT token
+        const complaints = await Complaint.find({submittedBy: req.user.id})
+
+        // replace submittedby with name and email
+            .populate('submittedBy', 'name email')
+            .sort({createdAt: -1});
+        // also sorted by creation date, newest first
+        
+        res.json(complaints);
+    }
+    catch(err){
+        console.error('CITIZEN history fetch error : ', err.message);
+        res.status(500).send('Server Error');
+    }
+})
+
+// Staff Dashboard
+router.get('/staff', auth, authorize(['staff', 'admin']), async(req, res) => {
+    try {
+
+        // find complaints where status is not resolved
+        const complaints = await Complaint.find({
+            status : {
+                $in : ['OPEN', 'IN PROGRESS']
+            }
+        })
+            // enrich the data with actual names and info
+            .populate('submittedBy', 'name email')
+            .populate('assignedTo' , 'name department')
+            .sort({createdAt : -1});
+        
+
+        res.json(complaints);
+    }
+    catch(err){
+        console.error('STAFF dashboard fetch error : ', err.message);
+        res.status(500).send('Server Error');
+    }
+});
+
+
+// staff, admin updates the status of a complaint 
+router.put('/:id/status', auth, authorize(['staff', 'admin']), async(req, res) => {
+    const {status} = req.body;
+    const complaintId = req.params.id;
+    const staffId = req.user.id;
+
+    if(!['IN PROGRESS', 'RESOLVED'].includes(status)){
+        return res.status(400).json({msg : 'Invalid status provided.'});
+    }
+
+    let updateFields = { status };
+
+    if(status == 'RESOLVED'){
+        updateFields.resolutionDate = new Date();
+    }
+
+    try{
+        const complaint = await Complaint.findByIdAndUpdate(
+            complaintId,
+            { $set : updateFields},
+            {new : true, runValidators : true}
+        );
+
+        if(!complaint){
+            return res.status(404).json({msg : 'Complaint not found'});
+        }
+
+        notifyCitizenOfStatusChange(complaint);
+
+        res.json({
+            msg : `Complaint status updated to ${status}`,
+            complaintId : complaint._id,
+            newStatus : complaint.status,
+            resolutionDate : complaint.resolutionDate
+        });
+    }
+    catch (err) {
+        console.error('Status update error: ', err.message);
+        res.status(500).send('Server error');
+    }
+});
+
 
 export default router;

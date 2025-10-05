@@ -3,6 +3,7 @@ import express from 'express'
 import mongoose from 'mongoose'
 import authRoutes from './src/routes/auth.js'
 import complaintRoutes from './src/routes/complaints.js'
+import adminRoutes from './src/routes/admin.js'
 const app = express();
 
 // Database connection
@@ -24,6 +25,7 @@ app.use(express.json());
 //Define routes
 app.use('/api/auth', authRoutes);
 app.use('/api/complaints', complaintRoutes);
+app.use('/api/admin', adminRoutes);
 // Root route
 app.get('/', (req, res) => 
     res.send("ResolveHub is running...")

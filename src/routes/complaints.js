@@ -173,4 +173,71 @@ router.put('/:id/status', auth, authorize(['staff', 'admin']), async(req, res) =
 });
 
 
+// Logic for feedback loop
+router.post('/:id/feedback', auth, authorize('citizen'), async(req, res) => {
+    const {rating, comment} = req.body;
+    const complaintId = req.params.id;
+    const citizenId = req.user.id;
+
+    if(!rating || rating < 0 || rating > 5){
+        return res.status(400).json({msg : 'Rating must be between 1 and 5.'});
+    }
+
+    try{
+        // find specific complaint
+        const complaint = await Complaint.findOne({
+            _id : complaintId,
+            submittedBy: citizenId,
+            status : 'RESOLVED'
+        });
+
+        // if no such complaint exist return
+        if(!complaint){
+            return res.status(404).json({msg : 'Complaint not found or not yet resolved.'});
+        }
+
+        // if feedback already given return
+        if(complaint.feedbackRating) {
+            return res.status(400).json({msg : 'Feedback has already been recorded for this complaint.'});
+        }
+
+        // update feedback and return new id
+        const updatedComplaint = await Complaint.findByIdAndUpdate(
+            complaintId,
+            {
+                $set : {
+                    feedbackRating: rating,
+                    feedbackComment: comment || null
+                }
+            },
+            {
+                new: true, runValidators: true
+            }
+        );
+
+        res.json({msg: 'Feedback recorded successflly.', complaintId: updatedComplaint._id});
+    }
+    catch(err){
+        console.error('Feedback submission error:', err.message);
+        res.status(500).send('Server error');
+    }
+});
+
+
+// heatmap logic
+router.get('/heatmap', auth, authorize(['staff', 'admin']), async(req, res) => {
+    try{
+        // find all complaints not yet resolved (Open or In progress)
+        const complaintLocations = await Complaint.find({
+            status : {$in: ['OPEN', 'IN PROGRESS']}
+        })
+        .select('location status -_id'); // to retrieve only location coordinates and status
+
+        res.json(complaintLocations); // data returned as an array of geoJSON points.
+    }
+    catch(err) {
+        console.error('Heatmap data fetch error: ', err.message);
+        res.status(500).send('Server error');
+    }
+});
 export default router;

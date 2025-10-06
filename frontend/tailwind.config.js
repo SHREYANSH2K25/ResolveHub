@@ -18,7 +18,7 @@ export default {
           700: '#1d4ed8',
           800: '#1e40af',
           900: '#1e3a8a',
-          950: '#172554'
+          950: '#172554',
         },
         municipal: {
           50: '#f8fafc',
@@ -30,11 +30,13 @@ export default {
           600: '#475569',
           700: '#334155',
           800: '#1e293b',
-          900: '#0f172a'
-        }
+          900: '#0f172a',
+        },
+        border: '#e5e7eb',
       },
       fontFamily: {
-        'sans': ['Inter', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        // Use self-hosted Inter font
+        sans: ['InterVariable', 'Inter', 'sans-serif'],
       },
       animation: {
         'slide-up': 'slideUp 0.3s ease-out',
@@ -48,9 +50,9 @@ export default {
         fadeIn: {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
-        }
-      }
+        },
+      },
     },
   },
   plugins: [],
-}
+};

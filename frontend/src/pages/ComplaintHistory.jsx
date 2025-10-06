@@ -25,14 +25,6 @@ const ComplaintHistory = () => {
   const [feedbackForm, setFeedbackForm] = useState({ rating: 5, comment: '' });
   const [submittingFeedback, setSubmittingFeedback] = useState(false);
 
-  useEffect(() => {
-    fetchComplaints();
-  }, []);
-
-  useEffect(() => {
-    filterComplaints();
-  }, [complaints, filterStatus, searchTerm]);
-
   const fetchComplaints = async () => {
     try {
       setLoading(true);
@@ -45,6 +37,16 @@ const ComplaintHistory = () => {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    fetchComplaints();
+  }, []);
+
+  useEffect(() => {
+    filterComplaints();
+  }, [complaints, filterStatus, searchTerm]);
+
+  
 
   const filterComplaints = () => {
     let filtered = complaints;

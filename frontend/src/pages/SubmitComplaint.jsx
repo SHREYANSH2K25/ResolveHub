@@ -14,7 +14,8 @@ const SubmitComplaint = () => {
     title: '',
     description: '',
     rawAddress: '',
-  });\n  const [selectedLocation, setSelectedLocation] = useState(null);
+  });
+  const [selectedLocation, setSelectedLocation] = useState(null);
   const [files, setFiles] = useState([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errors, setErrors] = useState({});

@@ -41,9 +41,9 @@ const CitizenDashboard = () => {
       // Calculate stats
       const stats = {
         total: complaints.length,
-        open: complaints.filter(c => c.status === 'OPEN').length,
-        inProgress: complaints.filter(c => c.status === 'IN PROGRESS').length,
-        resolved: complaints.filter(c => c.status === 'RESOLVED').length
+        open: complaints.filter(c => c.status.toUpperCase() === 'OPEN').length,
+        inProgress: complaints.filter(c => c.status.toUpperCase() === 'IN PROGRESS').length,
+        resolved: complaints.filter(c => c.status.toUpperCase() === 'RESOLVED').length
       };
       
       setStats(stats);

@@ -4,6 +4,7 @@ import mongoose from 'mongoose'
 import authRoutes from './src/routes/auth.js'
 import complaintRoutes from './src/routes/complaints.js'
 import adminRoutes from './src/routes/admin.js'
+import cors from 'cors'
 const app = express();
 
 // Database connection
@@ -20,6 +21,15 @@ const connectDB = async() => {
 
 connectDB();
 
+const allowedOrigins = [
+    'http://localhost:5173', 
+];
+const corsOptions = {
+  origin: allowedOrigins,
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  credentials: true, // Allow cookies and authentication headers (JWT)
+};
+app.use(cors(corsOptions));
 app.use(express.json());
 
 //Define routes

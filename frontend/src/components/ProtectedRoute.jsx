@@ -1,8 +1,8 @@
-import { Navigate } from 'react-router-dom';
+import { Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
 
-const ProtectedRoute = ({ children, roles = [] }) => {
+const ProtectedRoute = ({ roles = [] }) => {
   const { user, loading, isAuthenticated } = useAuth();
 
   if (loading) {
@@ -17,11 +17,13 @@ const ProtectedRoute = ({ children, roles = [] }) => {
     return <Navigate to="/login" replace />;
   }
 
-  if (roles.length > 0 && !roles.includes(user?.role)) {
+  const userRole = user?.role;
+
+  if (roles.length > 0 && !roles.includes(userRole)) {
     return <Navigate to="/dashboard" replace />;
   }
 
-  return children;
+  return <Outlet />;
 };
 
 export default ProtectedRoute;

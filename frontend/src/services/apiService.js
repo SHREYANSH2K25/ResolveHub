@@ -67,7 +67,7 @@ class ApiService {
     // Add files
     if (complaintData.files && complaintData.files.length > 0) {
       complaintData.files.forEach(file => {
-        formData.append('files', file);
+        formData.append('media', file);
       });
     }
     

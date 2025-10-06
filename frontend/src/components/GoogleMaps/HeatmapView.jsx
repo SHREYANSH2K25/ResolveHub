@@ -52,18 +52,18 @@ const HeatmapView = ({
     }
   };
 
-  useEffect(() => {
-    if (window.google) {
-      fetchHeatmapData();
-    }
-  }, []);
+  // useEffect(() => {
+  //   if (window.google) {
+  //     fetchHeatmapData();
+  //   }
+  // }, []);
 
   return (
     <LoadScript
       googleMapsApiKey={import.meta.env.VITE_GOOGLE_MAPS_API_KEY}
       libraries={libraries}
-      loadingElement={<div className="h-full flex items-center justify-center">Loading Heatmap...</div>}
-      onLoad={fetchHeatmapData}
+      //loadingElement={<div className="h-full flex items-center justify-center">Loading Heatmap...</div>}
+      ///onLoad={fetchHeatmapData}
     >
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -100,7 +100,9 @@ const HeatmapView = ({
             mapContainerStyle={mapContainerStyle}
             center={center}
             zoom={zoom}
-            onLoad={onLoad}
+            onLoad={(map) => {                 
+              fetchHeatmapData();
+            }}
             onUnmount={onUnmount}
             options={{
               zoomControl: true,

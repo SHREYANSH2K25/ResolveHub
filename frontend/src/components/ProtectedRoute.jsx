@@ -1,8 +1,8 @@
-import { Navigate, Outlet } from 'react-router-dom';
+import { Navigate} from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from './LoadingSpinner';
 
-const ProtectedRoute = ({ roles = [] }) => {
+const ProtectedRoute = ({ roles = [], children }) => {
   const { user, loading, isAuthenticated } = useAuth();
 
   if (loading) {
@@ -23,7 +23,7 @@ const ProtectedRoute = ({ roles = [] }) => {
     return <Navigate to="/dashboard" replace />;
   }
 
-  return <Outlet />;
+  return children;
 };
 
 export default ProtectedRoute;

@@ -68,8 +68,12 @@ const Navbar = () => {
             ) : (
               <>
                 <NavLink to="/dashboard">Dashboard</NavLink>
-                <NavLink to="/submit-complaint">Submit Complaint</NavLink>
-                <NavLink to="/complaint-history">My Complaints</NavLink>
+                {!isAdmin && !isStaff && (
+                  <>
+                  <NavLink to="/submit-complaint">Submit Complaint</NavLink>
+                  <NavLink to="/complaint-history">My Complaints</NavLink>
+                  </>)
+                }
                 
                 {isStaff && (
                   <>
@@ -143,8 +147,12 @@ const Navbar = () => {
                 </div>
                 
                 <NavLink to="/dashboard" onClick={() => setIsMenuOpen(false)}>Dashboard</NavLink>
-                <NavLink to="/submit-complaint" onClick={() => setIsMenuOpen(false)}>Submit Complaint</NavLink>
-                <NavLink to="/complaint-history" onClick={() => setIsMenuOpen(false)}>My Complaints</NavLink>
+                {!isAdmin && !isStaff && (
+                  <>
+                    <NavLink to="/submit-complaint" onClick={() => setIsMenuOpen(false)}>Submit Complaint</NavLink>
+                    <NavLink to="/complaint-history" onClick={() => setIsMenuOpen(false)}>My Complaints</NavLink>
+                  </>
+                )}
                 
                 {isStaff && (
                   <>

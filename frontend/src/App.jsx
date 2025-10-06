@@ -28,8 +28,9 @@ function App() {
               <Route path="/register" element={<RegisterPage />} />
               
               {/* Protected Routes */}
+              {/* Citizen Dashboard */}
               <Route path="/dashboard" element={
-                <ProtectedRoute>
+                <ProtectedRoute  roles={['citizen']}>
                   <CitizenDashboard />
                 </ProtectedRoute>
               } />
@@ -47,13 +48,13 @@ function App() {
               } />
               
               <Route path="/submit-complaint" element={
-                <ProtectedRoute>
+                <ProtectedRoute roles={['citizen']}>
                   <SubmitComplaint />
                 </ProtectedRoute>
               } />
               
               <Route path="/complaint-history" element={
-                <ProtectedRoute>
+                <ProtectedRoute roles={['citizen']}>
                   <ComplaintHistory />
                 </ProtectedRoute>
               } />
@@ -65,7 +66,7 @@ function App() {
               } />
               
               <Route path="/profile" element={
-                <ProtectedRoute>
+                <ProtectedRoute roles={['citizen', 'staff', 'admin']}>
                   <ProfilePage />
                 </ProtectedRoute>
               } />

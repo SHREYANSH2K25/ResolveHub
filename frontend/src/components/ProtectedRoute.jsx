@@ -12,7 +12,7 @@ const ProtectedRoute = ({ roles = [], children }) => {
       </div>
     );
   }
-
+  
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
@@ -20,9 +20,10 @@ const ProtectedRoute = ({ roles = [], children }) => {
   const userRole = user?.role;
 
   if (roles.length > 0 && !roles.includes(userRole)) {
+    if (userRole === 'admin') return <Navigate to="/admin" replace />;
+    if (userRole === 'staff') return <Navigate to="/staff" replace />;
     return <Navigate to="/dashboard" replace />;
   }
-
   return children;
 };
 

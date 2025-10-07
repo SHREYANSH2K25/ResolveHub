@@ -29,7 +29,6 @@ const RegisterPage = () => {
       ...formData,
       [e.target.name]: e.target.value
     });
-    // Clear error when user starts typing
     if (errors[e.target.name]) {
       setErrors({
         ...errors,
@@ -67,44 +66,37 @@ const RegisterPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setIsLoading(true);
-    
     const { confirmPassword, ...registrationData } = formData;
     const success = await register(registrationData);
-    
-    if (success) {
-      navigate('/dashboard');
-    }
-    
+    if (success) navigate('/dashboard');
     setIsLoading(false);
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 transition-colors py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8 bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-lg transition-colors">
         <div className="text-center">
           <div className="flex justify-center">
             <div className="flex items-center justify-center w-16 h-16 bg-primary-600 rounded-xl">
               <UserPlus className="w-8 h-8 text-white" />
             </div>
           </div>
-          <h2 className="mt-6 text-3xl font-bold text-gray-900">
+          <h2 className="mt-6 text-3xl font-bold text-gray-900 dark:text-white">
             Join ResolveHub
           </h2>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             Create your account to start reporting issues
           </p>
         </div>
-        
+
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
           <div className="space-y-4">
+            {/* Name */}
             <div>
-              <label htmlFor="name" className="form-label">
+              <label htmlFor="name" className="form-label dark:text-gray-300">
                 Full Name
               </label>
               <div className="relative">
@@ -118,17 +110,20 @@ const RegisterPage = () => {
                   required
                   value={formData.name}
                   onChange={handleChange}
-                  className={`input-field pl-10 ${errors.name ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''}`}
+                  className={`input-field pl-10 dark:bg-gray-700 dark:text-white dark:border-gray-600 ${
+                    errors.name ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''
+                  }`}
                   placeholder="Enter your full name"
                 />
               </div>
               {errors.name && (
-                <p className="mt-1 text-sm text-red-600">{errors.name}</p>
+                <p className="mt-1 text-sm text-red-500">{errors.name}</p>
               )}
             </div>
-            
+
+            {/* Email */}
             <div>
-              <label htmlFor="email" className="form-label">
+              <label htmlFor="email" className="form-label dark:text-gray-300">
                 Email Address
               </label>
               <div className="relative">
@@ -142,17 +137,20 @@ const RegisterPage = () => {
                   required
                   value={formData.email}
                   onChange={handleChange}
-                  className={`input-field pl-10 ${errors.email ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''}`}
+                  className={`input-field pl-10 dark:bg-gray-700 dark:text-white dark:border-gray-600 ${
+                    errors.email ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''
+                  }`}
                   placeholder="Enter your email"
                 />
               </div>
               {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+                <p className="mt-1 text-sm text-red-500">{errors.email}</p>
               )}
             </div>
-            
+
+            {/* Password */}
             <div>
-              <label htmlFor="password" className="form-label">
+              <label htmlFor="password" className="form-label dark:text-gray-300">
                 Password
               </label>
               <div className="relative">
@@ -166,7 +164,9 @@ const RegisterPage = () => {
                   required
                   value={formData.password}
                   onChange={handleChange}
-                  className={`input-field pl-10 pr-10 ${errors.password ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''}`}
+                  className={`input-field pl-10 pr-10 dark:bg-gray-700 dark:text-white dark:border-gray-600 ${
+                    errors.password ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''
+                  }`}
                   placeholder="Create a password"
                 />
                 <button
@@ -175,19 +175,20 @@ const RegisterPage = () => {
                   onClick={() => setShowPassword(!showPassword)}
                 >
                   {showPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                    <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
                   ) : (
-                    <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                    <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
                   )}
                 </button>
               </div>
               {errors.password && (
-                <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+                <p className="mt-1 text-sm text-red-500">{errors.password}</p>
               )}
             </div>
-            
+
+            {/* Confirm Password */}
             <div>
-              <label htmlFor="confirmPassword" className="form-label">
+              <label htmlFor="confirmPassword" className="form-label dark:text-gray-300">
                 Confirm Password
               </label>
               <div className="relative">
@@ -201,7 +202,9 @@ const RegisterPage = () => {
                   required
                   value={formData.confirmPassword}
                   onChange={handleChange}
-                  className={`input-field pl-10 pr-10 ${errors.confirmPassword ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''}`}
+                  className={`input-field pl-10 pr-10 dark:bg-gray-700 dark:text-white dark:border-gray-600 ${
+                    errors.confirmPassword ? 'border-red-300 focus:ring-red-500 focus:border-red-500' : ''
+                  }`}
                   placeholder="Confirm your password"
                 />
                 <button
@@ -210,18 +213,19 @@ const RegisterPage = () => {
                   onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                 >
                   {showConfirmPassword ? (
-                    <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                    <EyeOff className="h-5 w-5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
                   ) : (
-                    <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600" />
+                    <Eye className="h-5 w-5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" />
                   )}
                 </button>
               </div>
               {errors.confirmPassword && (
-                <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p>
+                <p className="mt-1 text-sm text-red-500">{errors.confirmPassword}</p>
               )}
             </div>
           </div>
 
+          {/* Submit Button */}
           <div>
             <button
               type="submit"
@@ -239,8 +243,9 @@ const RegisterPage = () => {
             </button>
           </div>
 
+          {/* Already have account */}
           <div className="text-center">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-gray-600 dark:text-gray-400">
               Already have an account?{' '}
               <Link
                 to="/login"

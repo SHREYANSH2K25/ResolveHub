@@ -1,3 +1,4 @@
+
 @import './assets/fonts/inter.css';
 
 /* Tailwind directives */
@@ -65,21 +66,66 @@
 /* Base styles */
 @layer base {
   body {
-    @apply bg-gray-50 text-gray-900 font-sans;
+    @apply bg-gray-50 dark:bg-municipal-900 text-gray-900 dark:text-gray-200 font-sans transition-colors duration-300;
   }
 }
 
-/* Components example */
+/* Components */
 @layer components {
   .btn-primary {
-    @apply bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg font-medium transition-colors duration-200;
+    @apply bg-primary-600 hover:bg-primary-700 dark:bg-primary-500 dark:hover:bg-primary-600 text-white px-6 py-3 rounded-lg font-medium transition-colors duration-200;
   }
 
   .btn-secondary {
-    @apply bg-gray-100 hover:bg-gray-200 text-gray-800 px-6 py-3 rounded-lg font-medium transition-colors duration-200 border border-gray-300;
+    @apply bg-gray-100 hover:bg-gray-200 dark:bg-municipal-800 dark:hover:bg-municipal-700 text-gray-800 dark:text-gray-200 px-6 py-3 rounded-lg font-medium transition-colors duration-200 border border-gray-300 dark:border-municipal-700;
   }
 
   .card {
-    @apply bg-white rounded-xl shadow-sm border border-gray-200 p-6;
+    @apply bg-white dark:bg-municipal-800 rounded-xl shadow-sm border border-gray-200 dark:border-municipal-700 p-6;
+  }
+}
+
+/* Custom utilities and animations */
+@layer utilities {
+  /* Animations for cards */
+  .card-animation {
+    animation: fadeInUp 0.5s ease-out forwards;
+  }
+
+  .card-animation:nth-child(1) { animation-delay: 0.1s; }
+  .card-animation:nth-child(2) { animation-delay: 0.2s; }
+  .card-animation:nth-child(3) { animation-delay: 0.3s; }
+  .card-animation:nth-child(4) { animation-delay: 0.4s; }
+  .card-animation:nth-child(5) { animation-delay: 0.5s; }
+  .card-animation:nth-child(6) { animation-delay: 0.6s; }
+
+  /* Smooth backdrop blur transition */
+  .backdrop-blur-lg {
+    transition: backdrop-filter 0.3s ease, background-color 0.3s ease;
+  }
+
+  /* Dark mode navbar shadow */
+  html.dark .shadow-md {
+    box-shadow: 0 4px 6px -1px rgba(255, 255, 255, 0.1), 0 2px 4px -1px rgba(255, 255, 255, 0.06);
+  }
+
+  /* Toggle button animation */
+  .toggle-button {
+    transition: transform 0.3s ease, background-color 0.3s ease, color 0.3s ease;
+  }
+  .toggle-button:hover {
+    transform: scale(1.1);
+  }
+}
+
+/* Keyframes for animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

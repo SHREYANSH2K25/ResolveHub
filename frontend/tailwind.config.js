@@ -4,6 +4,7 @@ export default {
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
   ],
+  darkMode: 'class', // Enable dark mode with class-based toggling
   theme: {
     extend: {
       colors: {
@@ -31,16 +32,20 @@ export default {
           700: '#334155',
           800: '#1e293b',
           900: '#0f172a',
+          950: '#020617', // Added for dark mode backgrounds
         },
-        border: '#e5e7eb',
+        border: {
+          DEFAULT: '#e5e7eb',
+          dark: '#374151', // Added for dark mode borders
+        },
       },
       fontFamily: {
-        // Use self-hosted Inter font
         sans: ['InterVariable', 'Inter', 'sans-serif'],
       },
       animation: {
         'slide-up': 'slideUp 0.3s ease-out',
         'fade-in': 'fadeIn 0.2s ease-in',
+        'toggle-pulse': 'pulse 0.3s ease-in-out', // Added for toggle button
       },
       keyframes: {
         slideUp: {
@@ -50,6 +55,10 @@ export default {
         fadeIn: {
           '0%': { opacity: '0' },
           '100%': { opacity: '1' },
+        },
+        pulse: {
+          '0%, 100%': { transform: 'scale(1)' },
+          '50%': { transform: 'scale(1.1)' },
         },
       },
     },

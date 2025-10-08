@@ -5,6 +5,9 @@ import authRoutes from './src/routes/auth.js'
 import complaintRoutes from './src/routes/complaints.js'
 import adminRoutes from './src/routes/admin.js'
 import cors from 'cors'
+
+
+
 const app = express();
 
 // Database connection
@@ -42,4 +45,10 @@ app.get('/', (req, res) =>
 );
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server started on ${PORT}.`))
+
+
+
+app.listen(PORT, () => {
+    console.log(`\nServer started on ${PORT}.`);
+   
+});

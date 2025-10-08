@@ -177,4 +177,4 @@ const testTriageService = async () => {
 };
 
 // Execute the test function when the script runs
-testTriageService();
+// testTriageService();

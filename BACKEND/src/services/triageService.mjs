@@ -44,7 +44,8 @@ export const loadModels = async () => {
 
         // --- 2. Load BOTH Models ---
         // The big pre-trained base model (MobileNetV2) is fetched from the running server (port 3000)
-        mobilenetModel = await tf.loadGraphModel('http://localhost:5000/model/model.json');
+       // In triageService.mjs:
+         mobilenetModel = await tf.loadGraphModel('http://localhost:5000/model/model.json');
         console.log('ML Service: Base MobileNetV2 model loaded.');
 
         // Load your small, trained classification head
@@ -54,7 +55,7 @@ export const loadModels = async () => {
 
     } catch (error) {
         // Re-throw the error as a critical failure after logging
-        console.error('CRITICAL ERROR: Failed to load ML models or labels. Check server status (port 3000) and file paths:', error.message);
+        console.error('CRITICAL ERROR: Failed to load ML models or labels. Check server status (port 5000) and file paths:', error.message);
         throw new Error(`Failed to initialize ML models: ${error.message}`);
     }
 };

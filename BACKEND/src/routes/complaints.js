@@ -7,6 +7,7 @@ import {geocodeLocation} from "../services/geoCodingService.js"
 import {Complaint} from "../models/Complaint.js"
 import authorize from '../middlewares/rbac.js'
 import { notifyCitizenOfStatusChange } from "../services/notificationService.js"
+import { updateLeaderboardPoints } from "../services/gamificationService.js"
 const router = express.Router();
 
 // helper to convert bufer(binary data) to string for cloudianry to accept
@@ -157,6 +158,13 @@ router.put('/:id/status', auth, authorize(['staff', 'admin']), async(req, res) =
             return res.status(404).json({msg : 'Complaint not found'});
         }
 
+        // add bonus based on resolutiontime
+        if(status === 'RESOLVED'){
+            const staffId = complaint.assignedTo;
+            if(staffId){
+                updateLeaderboardPoints(staffId, complaint, 'RESOLUTION');
+            }
+        }
         notifyCitizenOfStatusChange(complaint);
 
         res.json({
@@ -213,7 +221,13 @@ router.post('/:id/feedback', auth, authorize('citizen'), async(req, res) => {
             {
                 new: true, runValidators: true
             }
-        );
+        );  
+
+        // add bonus based on feedback
+        if(updatedComplaint.status === 'RESOLVED' && updatedComplaint.assignedTo){
+            const staffId = updatedComplaint.assignedTo;
+            updateLeaderboardPoints(staffId, updatedComplaint, 'FEEDBACK');
+        }
 
         res.json({msg: 'Feedback recorded successflly.', complaintId: updatedComplaint._id});
     }

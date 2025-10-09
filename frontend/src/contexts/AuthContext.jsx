@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 // src/contexts/AuthContext.jsx
 import { createContext, useContext, useState, useEffect } from 'react';
 import { apiService } from '../services/apiService';
@@ -133,3 +134,128 @@ export const AuthProvider = ({ children }) => {
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };
+=======
+// src/contexts/AuthContext.jsx
+import { createContext, useContext, useState, useEffect } from 'react';
+import { apiService } from '../services/apiService';
+import toast from 'react-hot-toast';
+
+const AuthContext = createContext({});
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error('useAuth must be used within an AuthProvider');
+  }
+  return context;
+};
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [token, setToken] = useState(localStorage.getItem('token'));
+
+  // Helper to save token and set user
+  const applyToken = (newToken) => {
+    localStorage.setItem('token', newToken);
+    setToken(newToken);
+    apiService.setAuthToken(newToken);
+    try {
+      const payload = JSON.parse(atob(newToken.split('.')[1]));
+      setUser(payload.user);
+    } catch (err) {
+      console.error('Invalid token:', err);
+      logout();
+    }
+  };
+
+  useEffect(() => {
+    // 1) Check for token in URL (OAuth redirect)
+    const params = new URLSearchParams(window.location.search);
+    const urlToken = params.get('token');
+    if (urlToken) {
+      applyToken(urlToken);
+      params.delete('token');
+      const newSearch = params.toString();
+      const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '');
+      window.history.replaceState({}, document.title, newUrl);
+      setLoading(false);
+      return;
+    }
+
+    // 2) Use token from localStorage
+    if (token) {
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]));
+        setUser(payload.user);
+        apiService.setAuthToken(token);
+      } catch (error) {
+        console.error('Invalid token:', error);
+        logout();
+      }
+    }
+
+    setLoading(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const login = async (credentials) => {
+    try {
+      const response = await apiService.login(credentials);
+      const { token: newToken } = response.data;
+      applyToken(newToken);
+      toast.success('Login successful!');
+      return true;
+    } catch (error) {
+      const message = error.response?.data?.msg || 'Login failed';
+      toast.error(message);
+      return false;
+    }
+  };
+
+  const register = async (userData) => {
+    try {
+      const response = await apiService.register(userData);
+      const { token: newToken } = response.data;
+      applyToken(newToken);
+      toast.success('Registration successful!');
+      return true;
+    } catch (error) {
+      const message = error.response?.data?.msg || 'Registration failed';
+      toast.error(message);
+      return false;
+    }
+  };
+
+  const logout = () => {
+    localStorage.removeItem('token');
+    setToken(null);
+    setUser(null);
+    apiService.clearAuthToken();
+    toast.success('Logged out successfully');
+  };
+
+  const isAuthenticated = !!user;
+  const isAdmin = user?.role === 'admin';
+  const isStaff = user?.role === 'staff' || user?.role === 'admin';
+  const isCitizen = user?.role === 'citizen';
+
+  return (
+    <AuthContext.Provider
+      value={{
+        user,
+        loading,
+        isAuthenticated,
+        isAdmin,
+        isStaff,
+        isCitizen,
+        login,
+        register,
+        logout,
+      }}
+    >
+      {children}
+    </AuthContext.Provider>
+  );
+};
+>>>>>>> 7c9cf5d754c7321ee6fe2bd24b3c683aa123eb5c

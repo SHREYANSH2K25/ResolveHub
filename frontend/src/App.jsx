@@ -16,6 +16,11 @@ import SubmitComplaint from './pages/SubmitComplaint';
 import ComplaintHistory from './pages/ComplaintHistory';
 import HeatmapPage from './pages/HeatmapPage';
 import ProfilePage from './pages/ProfilePage';
+import OAuthSuccess from './pages/OAuthSuccess';
+import OAuthFailure from './pages/OAuthFailure';
+import SettingsPage from './pages/SettingsPage';
+import StatisticsPage from './pages/StatisticsPage';
+import AboutPage from './pages/AboutPage';
 
 function App() {
   return (
@@ -31,6 +36,9 @@ function App() {
               <Route path="/register" element={<RegisterPage />} />
               <Route path="/check-status" element={<CheckStatusPage />} />
               <Route path="/help" element={<HelpPage />} />
+              <Route path="/about" element={<AboutPage />} />
+              <Route path="/oauth-success" element={<OAuthSuccess />} />
+              <Route path="/oauth-failure" element={<OAuthFailure />} />
 
               {/* Protected Routes */}
               <Route
@@ -86,6 +94,22 @@ function App() {
                 element={
                   <ProtectedRoute roles={['citizen', 'staff', 'admin']}>
                     <ProfilePage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/settings"
+                element={
+                  <ProtectedRoute roles={['citizen', 'staff', 'admin']}>
+                    <SettingsPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/statistics"
+                element={
+                  <ProtectedRoute roles={['staff', 'admin']}>
+                    <StatisticsPage />
                   </ProtectedRoute>
                 }
               />

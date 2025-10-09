@@ -54,142 +54,197 @@ const SubmitComplaint = () => {
         title: formData.title.trim(),
         description: formData.description.trim(),
         rawAddress: formData.rawAddress.trim(),
-        files: files.map(f => f.url || f),
+        files: files,
         ...(selectedLocation?.lat && selectedLocation?.lng && {
           latitude: selectedLocation.lat,
           longitude: selectedLocation.lng
         })
       };
+
       await apiService.submitComplaint(complaintData);
       toast.success('Complaint submitted successfully!');
-      navigate('/complaint-history');
-    } catch (err) {
-      console.error(err);
-      toast.error(err.response?.data?.msg || 'Failed to submit complaint. Please try again.');
+      navigate('/dashboard');
+    } catch (error) {
+      console.error('Error submitting complaint:', error);
+      toast.error(error.response?.data?.message || 'Failed to submit complaint');
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const inputClasses = (isInvalid) => `
-    w-full border rounded-lg px-4 py-2 text-gray-900 dark:text-white 
-    bg-white dark:bg-municipal-700 border-gray-300 dark:border-municipal-600 
-    focus:ring-2 focus:outline-none transition-colors duration-200
-    ${isInvalid ? 'border-red-500 focus:ring-red-500' : 'focus:ring-primary-500 focus:border-primary-500'}
-  `;
-  const labelClasses = "block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1";
-  const errorTextClasses = "mt-1 text-sm text-red-600 dark:text-red-400";
-  const helpTextClasses = "mt-1 text-xs text-gray-500 dark:text-gray-400";
-
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-municipal-900 py-8 transition-colors duration-300">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-        <PageHeader
-          title="Submit Complaint"
-          subtitle="Report municipal issues with precise location and supporting evidence"
-        />
+    <div className="min-h-screen bg-black relative overflow-hidden">
+      {/* Background Effects */}
+      <div className="absolute inset-0">
+        <div className="absolute top-10 -left-10 w-72 h-72 bg-gradient-to-tr from-purple-700 via-pink-600 to-blue-600 rounded-full opacity-10 filter blur-3xl animate-blob"></div>
+        <div className="absolute top-1/3 -right-20 w-80 h-80 bg-gradient-to-br from-pink-700 via-purple-600 to-blue-500 rounded-full opacity-10 filter blur-3xl animate-blob animation-delay-3000"></div>
+        <div className="absolute -bottom-20 left-1/4 w-72 h-72 bg-gradient-to-bl from-blue-700 via-purple-500 to-pink-500 rounded-full opacity-10 filter blur-3xl animate-blob animation-delay-5000"></div>
+      </div>
 
-        <form onSubmit={handleSubmit} className="space-y-8 mt-8">
+      <div className="relative z-10 py-8">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           
-          {/* Complaint Details */}
-          <Card className="shadow-lg dark:shadow-2xl">
-            <div className="flex items-center space-x-3 mb-6 border-b pb-4 border-gray-100 dark:border-municipal-700">
-              <div className="flex items-center justify-center w-10 h-10 bg-primary-100 dark:bg-primary-900/40 rounded-full">
-                <AlertTriangle className="w-5 h-5 text-primary-600 dark:text-primary-400" />
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Complaint Details</h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Provide clear and detailed information about the issue</p>
-              </div>
+          {/* Header with Glass Morphism */}
+          <div className="relative group mb-8">
+            <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-600 via-blue-600 to-pink-600 rounded-2xl blur opacity-20"></div>
+            <div className="relative bg-gray-900/40 backdrop-blur-xl rounded-2xl p-8 border border-gray-700/40 shadow-2xl text-center">
+              <h1 className="text-4xl font-bold text-white mb-4">Submit Complaint</h1>
+              <p className="text-gray-300 text-lg">Report municipal issues with precise location and supporting evidence</p>
             </div>
-            <div className="grid grid-cols-1 gap-6">
-              <div>
-                <label htmlFor="title" className={labelClasses}>Issue Title *</label>
-                <input type="text" id="title" name="title" value={formData.title} onChange={handleChange}
-                  className={inputClasses(errors.title)}
-                  placeholder="Brief title describing the issue"
-                  maxLength={100}
-                />
-                {errors.title && <p className={errorTextClasses}>{errors.title}</p>}
-                <p className={helpTextClasses}>{formData.title.length}/100 characters</p>
-              </div>
-              <div>
-                <label htmlFor="description" className={labelClasses}>Detailed Description *</label>
-                <textarea id="description" name="description" rows={4} value={formData.description} onChange={handleChange}
-                  className={inputClasses(errors.description)}
-                  placeholder="Provide detailed information..."
-                  maxLength={500}
-                />
-                {errors.description && <p className={errorTextClasses}>{errors.description}</p>}
-                <p className={helpTextClasses}>{formData.description.length}/500 characters (minimum 10 required)</p>
-              </div>
-            </div>
-          </Card>
-
-          {/* Location */}
-          <Card className="shadow-lg dark:shadow-2xl">
-            <div className="flex items-center space-x-3 mb-6 border-b pb-4 border-gray-100 dark:border-municipal-700">
-              <div className="flex items-center justify-center w-10 h-10 bg-green-100 dark:bg-green-900/40 rounded-full">
-                <MapPin className="w-5 h-5 text-green-600 dark:text-green-400" />
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Location Information</h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Pinpoint the exact location of the issue</p>
-              </div>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label htmlFor="rawAddress" className={labelClasses}>Address *</label>
-                <input type="text" id="rawAddress" name="rawAddress" value={formData.rawAddress} onChange={handleChange}
-                  className={inputClasses(errors.location)}
-                  placeholder="Enter or search for the address..."
-                />
-                {errors.location && <p className={errorTextClasses}>{errors.location}</p>}
-              </div>
-              <div className={`
-                p-1 border-2 border-gray-200 dark:border-municipal-700 rounded-lg
-                ${errors.location ? 'border-red-400 dark:border-red-600' : 'hover:border-primary-400'}
-                transition-all duration-300
-              `}>
-                <MapContainer
-                  onLocationSelect={handleLocationSelect}
-                  selectedLocation={selectedLocation}
-                  height="400px"
-                  showPlacesSearch={true}
-                  showStreetView={true}
-                  libraries={['places', 'visualization']} // consolidated libraries
-                />
-              </div>
-              {selectedLocation && (
-                <p className={helpTextClasses}>
-                  Selected Coordinates: {selectedLocation.lat.toFixed(4)}, {selectedLocation.lng.toFixed(4)}
-                </p>
-              )}
-            </div>
-          </Card>
-
-          {/* File Upload */}
-          <Card className="shadow-lg dark:shadow-2xl">
-            <div className="flex items-center space-x-3 mb-6 border-b pb-4 border-gray-100 dark:border-municipal-700">
-              <div className="flex items-center justify-center w-10 h-10 bg-blue-100 dark:bg-blue-900/40 rounded-full">
-                <LinkIcon className="w-5 h-5 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Supporting Evidence</h2>
-                <p className="text-sm text-gray-600 dark:text-gray-400">Upload photos or documents (optional)</p>
-              </div>
-            </div>
-            <FileUpload onFilesChange={handleFilesChange} maxFiles={5} maxSizeInMB={10} />
-          </Card>
-
-          {/* Submit */}
-          <div className="flex justify-end space-x-4 pt-4">
-            <button type="button" onClick={() => navigate('/dashboard')} className="btn-secondary shadow-md" disabled={isSubmitting}>Cancel</button>
-            <button type="submit" disabled={isSubmitting} className="btn-primary flex items-center space-x-2 shadow-lg">
-              {isSubmitting ? <><LoadingSpinner size="sm"/><span>Submitting...</span></> : <><Send className="w-5 h-5"/><span>Submit Complaint</span></>}
-            </button>
           </div>
-        </form>
+
+          <form onSubmit={handleSubmit} className="space-y-8">
+            
+            {/* Complaint Details with Glass Morphism */}
+            <div className="relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl blur opacity-10 group-hover:opacity-20 transition duration-300"></div>
+              <div className="relative bg-gray-900/30 backdrop-blur-lg rounded-xl border border-gray-700/30 p-8">
+                <div className="flex items-center space-x-3 mb-6 border-b border-gray-700/30 pb-4">
+                  <div className="flex items-center justify-center w-10 h-10 bg-purple-500/20 rounded-full border border-purple-500/30">
+                    <AlertTriangle className="w-5 h-5 text-purple-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-white">Complaint Details</h2>
+                    <p className="text-sm text-gray-300">Provide clear and detailed information about the issue</p>
+                  </div>
+                </div>
+                
+                <div className="grid grid-cols-1 gap-6">
+                  <div>
+                    <label htmlFor="title" className="block text-sm font-medium text-gray-300 mb-2">Issue Title *</label>
+                    <input 
+                      type="text" 
+                      id="title" 
+                      name="title" 
+                      value={formData.title} 
+                      onChange={handleChange}
+                      className={`w-full px-4 py-3 bg-gray-800/50 backdrop-blur-sm border rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 ${
+                        errors.title ? 'border-red-500 focus:ring-red-500' : 'border-gray-600/50'
+                      }`}
+                      placeholder="Brief title describing the issue"
+                      maxLength={100}
+                    />
+                    {errors.title && <p className="mt-1 text-sm text-red-400">{errors.title}</p>}
+                    <p className="mt-1 text-xs text-gray-400">{formData.title.length}/100 characters</p>
+                  </div>
+                  
+                  <div>
+                    <label htmlFor="description" className="block text-sm font-medium text-gray-300 mb-2">Detailed Description *</label>
+                    <textarea 
+                      id="description" 
+                      name="description" 
+                      rows={4} 
+                      value={formData.description} 
+                      onChange={handleChange}
+                      className={`w-full px-4 py-3 bg-gray-800/50 backdrop-blur-sm border rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 resize-none ${
+                        errors.description ? 'border-red-500 focus:ring-red-500' : 'border-gray-600/50'
+                      }`}
+                      placeholder="Provide detailed information about the issue, including when it occurred and its impact..."
+                      maxLength={500}
+                    />
+                    {errors.description && <p className="mt-1 text-sm text-red-400">{errors.description}</p>}
+                    <p className="mt-1 text-xs text-gray-400">{formData.description.length}/500 characters</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Location with Glass Morphism */}
+            <div className="relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl blur opacity-10 group-hover:opacity-20 transition duration-300"></div>
+              <div className="relative bg-gray-900/30 backdrop-blur-lg rounded-xl border border-gray-700/30 p-8">
+                <div className="flex items-center space-x-3 mb-6 border-b border-gray-700/30 pb-4">
+                  <div className="flex items-center justify-center w-10 h-10 bg-blue-500/20 rounded-full border border-blue-500/30">
+                    <MapPin className="w-5 h-5 text-blue-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-white">Location Information</h2>
+                    <p className="text-sm text-gray-300">Pin the exact location or provide address details</p>
+                  </div>
+                </div>
+
+                <div className="space-y-6">
+                  <div>
+                    <label htmlFor="rawAddress" className="block text-sm font-medium text-gray-300 mb-2">Address *</label>
+                    <input 
+                      type="text" 
+                      id="rawAddress" 
+                      name="rawAddress" 
+                      value={formData.rawAddress} 
+                      onChange={handleChange}
+                      className={`w-full px-4 py-3 bg-gray-800/50 backdrop-blur-sm border rounded-lg text-white placeholder-gray-400 focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 ${
+                        errors.location ? 'border-red-500 focus:ring-red-500' : 'border-gray-600/50'
+                      }`}
+                      placeholder="Enter the address or area where the issue is located"
+                    />
+                    {errors.location && <p className="mt-1 text-sm text-red-400">{errors.location}</p>}
+                  </div>
+
+                  <div className="bg-gray-800/30 rounded-lg border border-gray-700/30 overflow-hidden">
+                    <MapContainer 
+                      onLocationSelect={handleLocationSelect}
+                      selectedLocation={selectedLocation}
+                      height="400px"
+                      showPlacesSearch={true}
+                      showStreetView={false}
+                    />
+                  </div>
+                  
+                  {selectedLocation && (
+                    <div className="bg-green-500/10 border border-green-500/30 rounded-lg p-4">
+                      <p className="text-green-300 text-sm font-medium">
+                        📍 Location Selected: {selectedLocation.lat.toFixed(6)}, {selectedLocation.lng.toFixed(6)}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* File Upload with Glass Morphism */}
+            <div className="relative group">
+              <div className="absolute -inset-0.5 bg-gradient-to-r from-green-600 to-blue-600 rounded-xl blur opacity-10 group-hover:opacity-20 transition duration-300"></div>
+              <div className="relative bg-gray-900/30 backdrop-blur-lg rounded-xl border border-gray-700/30 p-8">
+                <div className="flex items-center space-x-3 mb-6 border-b border-gray-700/30 pb-4">
+                  <div className="flex items-center justify-center w-10 h-10 bg-green-500/20 rounded-full border border-green-500/30">
+                    <LinkIcon className="w-5 h-5 text-green-400" />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-semibold text-white">Supporting Evidence</h2>
+                    <p className="text-sm text-gray-300">Upload photos or documents to support your complaint</p>
+                  </div>
+                </div>
+
+                <FileUpload 
+                  onFilesChange={handleFilesChange} 
+                  maxFiles={5}
+                  className="bg-gray-800/30 border-gray-600/50 text-white"
+                />
+              </div>
+            </div>
+
+            {/* Submit Button */}
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-8 py-4 bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 disabled:from-gray-600 disabled:to-gray-700 text-white rounded-xl font-semibold backdrop-blur-sm transition-all duration-300 flex items-center space-x-2 shadow-lg hover:shadow-xl"
+              >
+                {isSubmitting ? (
+                  <>
+                    <LoadingSpinner size="sm" />
+                    <span>Submitting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="w-5 h-5" />
+                    <span>Submit Complaint</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
   );

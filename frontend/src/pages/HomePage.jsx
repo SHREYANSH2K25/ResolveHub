@@ -187,21 +187,27 @@ const HomePage = () => {
                 making municipal services faster and more accountable.
               </p>
 
-              <div className="flex flex-wrap gap-4">
+              <div className="flex flex-wrap gap-4 mt-2">
                 {!isAuthenticated ? (
                   <>
                     <Link
                       to="/register"
-                      className="inline-flex items-center gap-2 px-6 py-3 bg-white/95 text-indigo-700 font-semibold rounded-lg shadow-xl hover:-translate-y-1 transition-transform"
+                      className="group relative inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 text-white font-bold text-lg rounded-2xl shadow-2xl hover:shadow-purple-500/25 hover:-translate-y-2 transition-all duration-300 transform hover:scale-105 backdrop-blur-sm border border-white/20"
                     >
-                      Get Started
-                      <ArrowRight className="w-4 h-4" />
+                      <div className="absolute inset-0 bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 rounded-2xl blur opacity-40 group-hover:opacity-60 transition-opacity"></div>
+                      <span className="relative">Get Started</span>
+                      <ArrowRight className="w-5 h-5 relative group-hover:translate-x-1 transition-transform" />
                     </Link>
                     <Link
                       to="/login"
-                      className="inline-flex items-center gap-2 px-6 py-3 border border-white/30 text-white/95 rounded-lg hover:bg-white/10 transition-colors"
+                      className="group relative inline-flex items-center gap-2 px-6 py-4 bg-white/10 backdrop-blur-md border-2 border-white/30 text-white font-semibold text-lg rounded-2xl hover:bg-white/20 hover:border-white/60 hover:-translate-y-1 hover:shadow-xl hover:shadow-white/10 transition-all duration-300 transform hover:scale-105"
                     >
-                      Sign In
+                      <div className="absolute inset-0 bg-gradient-to-r from-white/10 to-white/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                      <span className="relative">Sign In</span>
+                      <div className="relative w-5 h-5 overflow-hidden">
+                        <div className="absolute inset-0 border-2 border-current rounded-full group-hover:rotate-45 transition-transform duration-300"></div>
+                        <div className="absolute top-1/2 left-1/2 w-2 h-2 bg-current rounded-full transform -translate-x-1/2 -translate-y-1/2 group-hover:scale-150 transition-transform duration-300"></div>
+                      </div>
                     </Link>
                   </>
                 ) : (
@@ -213,10 +219,11 @@ const HomePage = () => {
                         ? "/staff"
                         : "/dashboard"
                     }
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-white/95 text-indigo-700 font-semibold rounded-lg shadow-xl hover:-translate-y-1 transition-transform"
+                    className="group relative inline-flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 text-white font-bold text-lg rounded-2xl shadow-2xl hover:shadow-purple-500/25 hover:-translate-y-2 transition-all duration-300 transform hover:scale-105 backdrop-blur-sm border border-white/20"
                   >
-                    Go to Dashboard
-                    <ArrowRight className="w-4 h-4" />
+                    <div className="absolute inset-0 bg-gradient-to-r from-purple-600 via-pink-600 to-blue-600 rounded-2xl blur opacity-40 group-hover:opacity-60 transition-opacity"></div>
+                    <span className="relative">Go to Dashboard</span>
+                    <ArrowRight className="w-5 h-5 relative group-hover:translate-x-1 transition-transform" />
                   </Link>
                 )}
               </div>
@@ -248,27 +255,6 @@ const HomePage = () => {
                   ))}
                 </div>
               </div>
-              
-              <motion.div
-                initial={{ y: 10, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.25 }}
-                className="absolute -bottom-8 left-6 w-44 bg-white rounded-xl p-3 shadow-lg border border-white/10"
-              >
-                <div className="flex items-center gap-3 ">
-                  <div className="bg-indigo-50 rounded-lg p-2">
-                    <MapPin className="w-5 h-5 text-indigo-600" />
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-gray-800">
-                      Nearby Reports
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      View heatmap & cluster data
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
             </motion.div>
           </div>
 
@@ -278,13 +264,18 @@ const HomePage = () => {
 
       {/* FEATURES */}
       <section className="py-16 px-6 relative">
+        {/* Background Effects */}
+        <div className="absolute inset-0">
+          <div className="absolute top-20 left-20 w-72 h-72 bg-gradient-to-r from-purple-600 to-blue-600 rounded-full opacity-10 blur-3xl"></div>
+          <div className="absolute bottom-20 right-20 w-96 h-96 bg-gradient-to-l from-pink-600 to-purple-600 rounded-full opacity-10 blur-3xl"></div>
+        </div>
         
-        <div className="max-w-6xl mx-auto text-center">
+        <div className="max-w-6xl mx-auto text-center relative z-10">
           <motion.span
             initial={{ opacity: 0, y: -10 }}
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
-            className="inline-block bg-gradient-to-r from-green-400 to-emerald-500 text-sm font-semibold px-4 py-1 rounded-full mb-4"
+            className="inline-block bg-gradient-to-r from-purple-600 to-pink-600 text-white text-sm font-semibold px-6 py-2 rounded-full mb-6 backdrop-blur-sm"
           >
             ⚙️ Smart Governance Tools
           </motion.span>
@@ -294,7 +285,7 @@ const HomePage = () => {
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
             viewport={{ once: true }}
-            className="text-4xl md:text-5xl font-bold mb-4"
+            className="text-4xl md:text-5xl font-bold mb-4 text-white"
           >
             Comprehensive Municipal Management
           </motion.h2>
@@ -304,11 +295,10 @@ const HomePage = () => {
             whileInView={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2 }}
             viewport={{ once: true }}
-            className="text-gray-400 max-w-3xl mx-auto text-lg mb-16"
+            className="text-gray-300 max-w-3xl mx-auto text-lg mb-16"
           >
             Tools for citizens, staff and admins — reporting, assignment, tracking and analytics.
           </motion.p>
-            <div className="absolute left-[-102px] top-[417px] w-[223px] h-[223px] rounded-full bg-[#2D64FF]/30 blur-3xl"></div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {features.map((feature, i) => (
@@ -319,33 +309,40 @@ const HomePage = () => {
                 transition={{ delay: i * 0.1 }}
                 viewport={{ once: true }}
                 whileHover={{ y: -5 }}
-                className="group relative bg-[#14141A] border border-transparent hover:border-gray-800 rounded-2xl p-8 shadow-md hover:shadow-lg transition-all duration-300 overflow-hidden"
+                className="group relative"
               >
-                <div className="text-green-400 mb-5">{feature.icon}</div>
-                <h3 className="text-xl font-semibold mb-3">{feature.title}</h3>
-                <p className="text-gray-400 text-sm leading-relaxed">
-                  {feature.description}
-                </p>
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl blur opacity-10 group-hover:opacity-30 transition duration-300"></div>
+                <div className="relative bg-gray-900/30 backdrop-blur-lg border border-gray-700/30 hover:border-purple-500/50 rounded-2xl p-8 transition-all duration-300 overflow-hidden">
+                  <div className="text-purple-400 mb-5">{feature.icon}</div>
+                  <h3 className="text-xl font-semibold mb-3 text-white">{feature.title}</h3>
+                  <p className="text-gray-300 text-sm leading-relaxed">
+                    {feature.description}
+                  </p>
 
-                {/* Animated underline */}
-                <span className="absolute bottom-0 left-0 w-0 h-[3px] bg-gradient-to-r from-green-400 to-emerald-500 rounded-full transition-all duration-500 group-hover:w-1/2 group-hover:-translate-x"></span>
+                  {/* Animated underline */}
+                  <span className="absolute bottom-0 left-0 w-0 h-[3px] bg-gradient-to-r from-purple-400 to-pink-400 rounded-full transition-all duration-500 group-hover:w-1/2"></span>
+                </div>
               </motion.div>
             ))}
           </div>
         </div>
-        <div className="absolute left-[1330px] top-[440px] w-[223px] h-[223px] rounded-full bg-[#C623FF]/30 blur-3xl"></div>
-
       </section>
 
       {/* HOW IT WORKS - Fixed alternating layout with center line */}
-      <section className="py-24 bg-gradient-to-b from-gray-950 to-gray-900 text-white relative overflow-hidden">
-        <div className="max-w-6xl mx-auto px-4 ">
+      <section className="py-24 bg-black text-white relative overflow-hidden">
+        {/* Background Effects */}
+        <div className="absolute inset-0">
+          <div className="absolute top-10 -left-10 w-72 h-72 bg-gradient-to-tr from-purple-700 via-pink-600 to-blue-600 rounded-full opacity-10 filter blur-3xl"></div>
+          <div className="absolute bottom-10 -right-10 w-80 h-80 bg-gradient-to-br from-pink-700 via-purple-600 to-blue-500 rounded-full opacity-10 filter blur-3xl"></div>
+        </div>
+
+        <div className="max-w-6xl mx-auto px-4 relative z-10">
           <div className="text-center mb-16">
-            <span className="px-4 py-1 text-xs uppercase tracking-wider bg-indigo-500/20 rounded-full text-indigo-400">
+            <span className="px-6 py-2 text-sm font-semibold bg-gradient-to-r from-purple-600 to-pink-600 rounded-full text-white backdrop-blur-sm">
               Streamlined Process
             </span>
-            <h2 className="text-4xl font-extrabold mt-4">How ResolveHub Works</h2>
-            <p className="text-gray-400 mt-3 max-w-2xl mx-auto">
+            <h2 className="text-4xl font-extrabold mt-6 text-white">How ResolveHub Works</h2>
+            <p className="text-gray-300 mt-4 max-w-2xl mx-auto text-lg">
               A complete, AI-powered journey from complaint submission to verified resolution — built for speed, accuracy, and accountability.
             </p>
           </div>
@@ -373,30 +370,33 @@ const HomePage = () => {
                         <div className="w-full md:max-w-lg">
                           {/* Small circle on mobile inside card header */}
                           <div className="md:hidden flex items-center gap-3 mb-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center font-semibold text-white">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center font-semibold text-white">
                               {step.id}
                             </div>
-                            <div className="px-2 py-1 text-xs rounded-full bg-indigo-600/20 text-indigo-300 font-medium">
+                            <div className="px-2 py-1 text-xs rounded-full bg-purple-600/20 text-purple-300 font-medium">
                               {step.role}
                             </div>
                             
                           </div>
 
-                          <div className="bg-gray-800/60 border border-gray-700 rounded-2xl p-6 shadow-lg hover:shadow-indigo-500/20 transition">
-                            <div className="hidden md:flex items-center gap-3 mb-3">
-                              <div className="px-2 py-1 text-xs rounded-full bg-indigo-600/20 text-indigo-400 font-medium">
-                                {step.role}
+                          <div className="relative group">
+                            <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl blur opacity-10 group-hover:opacity-30 transition duration-300"></div>
+                            <div className="relative bg-gray-900/30 backdrop-blur-lg border border-gray-700/30 hover:border-purple-500/50 rounded-2xl p-6 transition-all duration-300">
+                              <div className="hidden md:flex items-center gap-3 mb-3">
+                                <div className="px-3 py-1 text-xs rounded-full bg-purple-500/20 text-purple-300 font-medium border border-purple-500/30">
+                                  {step.role}
+                                </div>
+                                <div className="text-purple-400">{step.icon}</div>
                               </div>
-                              <div className="text-indigo-400">{step.icon}</div>
-                            </div>
 
-                            <h3 className="text-xl font-semibold mb-2">{step.title}</h3>
-                            <p className="text-gray-400 mb-4">{step.summary}</p>
-                            <ul className="list-disc pl-5 text-gray-400 space-y-1 text-sm">
-                              {step.bullets.map((b, i) => (
-                                <li key={i}>{b}</li>
-                              ))}
-                            </ul>
+                              <h3 className="text-xl font-semibold mb-2 text-white">{step.title}</h3>
+                              <p className="text-gray-300 mb-4">{step.summary}</p>
+                              <ul className="list-disc pl-5 text-gray-300 space-y-1 text-sm">
+                                {step.bullets.map((b, i) => (
+                                  <li key={i}>{b}</li>
+                                ))}
+                              </ul>
+                            </div>
                           </div>
                         </div>
                       )}
@@ -405,7 +405,7 @@ const HomePage = () => {
                     {/* CENTER column: number circle */}
                     <div className="md:col-span-2 flex justify-center">
                       <div className="relative z-10 flex items-center justify-center">
-                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 text-white flex items-center justify-center font-bold shadow-lg ring-4 ring-gray-900/80">
+                        <div className="w-14 h-14 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 text-white flex items-center justify-center font-bold shadow-lg ring-4 ring-gray-900/50 backdrop-blur-sm">
                           {step.id}
                         </div>
                       </div>
@@ -417,29 +417,32 @@ const HomePage = () => {
                         <div className="w-full md:max-w-lg">
                           {/* mobile small circle + role */}
                           <div className="md:hidden flex items-center gap-3 mb-3">
-                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center font-semibold text-white">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-600 to-pink-600 flex items-center justify-center font-semibold text-white">
                               {step.id}
                             </div>
-                            <div className="px-2 py-1 text-xs rounded-full bg-indigo-600/20 text-indigo-300 font-medium">
+                            <div className="px-2 py-1 text-xs rounded-full bg-purple-600/20 text-purple-300 font-medium">
                               {step.role}
                             </div>
                           </div>
 
-                          <div className="bg-gray-800/60 border border-gray-700 rounded-2xl p-6 shadow-lg hover:shadow-indigo-500/20 transition">
-                            <div className="hidden md:flex items-center gap-3 mb-3">
-                              <div className="px-2 py-1 text-xs rounded-full bg-indigo-600/20 text-indigo-400 font-medium">
-                                {step.role}
+                          <div className="relative group">
+                            <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl blur opacity-10 group-hover:opacity-30 transition duration-300"></div>
+                            <div className="relative bg-gray-900/30 backdrop-blur-lg border border-gray-700/30 hover:border-purple-500/50 rounded-2xl p-6 transition-all duration-300">
+                              <div className="hidden md:flex items-center gap-3 mb-3">
+                                <div className="px-3 py-1 text-xs rounded-full bg-purple-500/20 text-purple-300 font-medium border border-purple-500/30">
+                                  {step.role}
+                                </div>
+                                <div className="text-purple-400">{step.icon}</div>
                               </div>
-                              <div className="text-indigo-400">{step.icon}</div>
-                            </div>
 
-                            <h3 className="text-xl font-semibold mb-2">{step.title}</h3>
-                            <p className="text-gray-400 mb-4">{step.summary}</p>
-                            <ul className="list-disc pl-5 text-gray-400 space-y-1 text-sm">
-                              {step.bullets.map((b, i) => (
-                                <li key={i}>{b}</li>
-                              ))}
-                            </ul>
+                              <h3 className="text-xl font-semibold mb-2 text-white">{step.title}</h3>
+                              <p className="text-gray-300 mb-4">{step.summary}</p>
+                              <ul className="list-disc pl-5 text-gray-300 space-y-1 text-sm">
+                                {step.bullets.map((b, i) => (
+                                  <li key={i}>{b}</li>
+                                ))}
+                              </ul>
+                            </div>
                           </div>
                         </div>
                       )}

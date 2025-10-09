@@ -1,3 +1,4 @@
+// src/contexts/AuthContext.jsx
 import { createContext, useContext, useState, useEffect } from 'react';
 import { apiService } from '../services/apiService';
 import toast from 'react-hot-toast';
@@ -17,9 +18,39 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [token, setToken] = useState(localStorage.getItem('token'));
 
+  // Helper to store token
+  const applyToken = (newToken) => {
+    localStorage.setItem('token', newToken);
+    setToken(newToken);
+    apiService.setAuthToken(newToken);
+    try {
+      const payload = JSON.parse(atob(newToken.split('.')[1]));
+      setUser(payload.user);
+    } catch (err) {
+      console.error('Invalid token:', err);
+      logout();
+    }
+  };
+
+  // On mount: if token in url (oauth redirect), capture it; else if token in storage, use it
   useEffect(() => {
+    // 1) Check URL for token (social login redirect)
+    const params = new URLSearchParams(window.location.search);
+    const urlToken = params.get('token');
+    if (urlToken) {
+      // Save token and remove it from URL
+      applyToken(urlToken);
+      // Remove token param from URL without reloading
+      params.delete('token');
+      const newSearch = params.toString();
+      const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '');
+      window.history.replaceState({}, document.title, newUrl);
+      setLoading(false);
+      return;
+    }
+
+    // 2) Use token from localStorage
     if (token) {
-      // Decode JWT to get user info
       try {
         const payload = JSON.parse(atob(token.split('.')[1]));
         setUser(payload.user);
@@ -30,20 +61,21 @@ export const AuthProvider = ({ children }) => {
       }
     }
     setLoading(false);
-  }, [token]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const login = async (credentials) => {
     try {
       const response = await apiService.login(credentials);
       const { token: newToken } = response.data;
-      
+
       localStorage.setItem('token', newToken);
       setToken(newToken);
-      
+
       const payload = JSON.parse(atob(newToken.split('.')[1]));
       setUser(payload.user);
       apiService.setAuthToken(newToken);
-      
+
       toast.success('Login successful!');
       return true;
     } catch (error) {
@@ -57,14 +89,14 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await apiService.register(userData);
       const { token: newToken } = response.data;
-      
+
       localStorage.setItem('token', newToken);
       setToken(newToken);
-      
+
       const payload = JSON.parse(atob(newToken.split('.')[1]));
       setUser(payload.user);
       apiService.setAuthToken(newToken);
-      
+
       toast.success('Registration successful!');
       return true;
     } catch (error) {
@@ -99,9 +131,5 @@ export const AuthProvider = ({ children }) => {
     logout,
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

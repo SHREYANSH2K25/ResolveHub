@@ -1,33 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../contexts/AuthContext'; // FIX: Adjusted path to '../'
-// import { useTheme } from '../../contexts/ThemeContext'; // REMOVED: Causing crash until Provider is wrapped
-// import ThemeToggle from './ThemeToggle'; // REMOVED: Relies on useTheme
-import { Menu, X, MapPin, User, LogOut, Sun, Moon } from 'lucide-react'; // ADDED: Sun/Moon icons back
+import { useAuth } from '../contexts/AuthContext';
+import { Menu, X, LogOut, Sun, Moon } from 'lucide-react';
 
 const Navbar = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  
-  // REVERTED: Local state management for theme until provider is implemented
-  const [isDark, setIsDark] = useState(() => {
-    // Check localStorage for persisted theme on mount
-    return localStorage.getItem('theme') === 'dark';
-  });
-  
-  // REVERTED: Local effect to apply 'dark' class
-  useEffect(() => {
-    if (isDark) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  }, [isDark]);
+  const [isDark, setIsDark] = useState(() => localStorage.getItem('theme') === 'dark');
 
-  // Use isDark state for styling logic
-  // const { isDarkMode } = useTheme(); // Crash fixed by removing this
-  
   const { user, isAuthenticated, logout, isAdmin, isStaff } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -38,53 +17,129 @@ const Navbar = () => {
     setIsMenuOpen(false);
   };
 
+  useEffect(() => {
+    if (isDark) {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [isDark]);
+
   const isActive = (path) => location.pathname === path;
 
-  const NavLink = ({ to, children, onClick, external = false }) => {
-    const baseClasses = "block px-3 py-2 text-sm font-medium transition-all duration-200 rounded-md";
-    const activeClasses = isActive(to) 
-      ? "text-primary-600 dark:text-primary-400 bg-primary-50 dark:bg-municipal-800" 
-      : "text-gray-700 dark:text-gray-200 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-gray-100 dark:hover:bg-municipal-800";
-    
-    if (external) {
-      return (
-        <button
-          onClick={onClick}
-          className={`${baseClasses} ${activeClasses}`}
-        >
-          {children}
-        </button>
-      );
-    }
-    
-    return (
-      <Link
-        to={to}
-        onClick={onClick}
-        className={`${baseClasses} ${activeClasses}`}
-      >
-        {children}
-      </Link>
-    );
-  };
+  const NavLink = ({ to, children }) => (
+    <Link
+      to={to}
+      onClick={() => setIsMenuOpen(false)}
+      className={`text-sm font-outfit font-medium transition-all duration-200 ${
+        isActive(to) ? 'text-purple-300' : 'text-white hover:text-purple-300'
+      }`}
+    >
+      {children}
+    </Link>
+  );
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-50 bg-white dark:bg-municipal-900 shadow-md border-b border-gray-200 dark:border-municipal-700 transition-colors duration-300">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          {/* Logo */}
-          <Link to="/" className="flex items-center space-x-2">
-            <div className="flex items-center justify-center w-8 h-8 bg-primary-600 dark:bg-primary-500 rounded-lg">
-              <MapPin className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-xl font-bold text-gray-900 dark:text-white">ResolveHub</span>
-          </Link>
+    <nav className="fixed top-0 left-0 right-0 z-50 backdrop-blur-lg bg-black transition-all duration-300">
+      <div className="max-w-7xl mx-auto px-6 py-3 flex items-center justify-between gap-6">
+        {/* Logo */}
+        <Link to="/" className="flex items-center gap-2">
+          <img src="/favicon.svg" alt="ResolveHub Logo" className="w-8 h-8" />
+          <span className="text-xl font-semibold bg-gradient-to-r from-[#C025FF] via-[#8141FF] to-[#2C64FE] bg-clip-text text-transparent font-outfit">
+            ResolveHub
+          </span>
+        </Link>
 
-          {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center space-x-2">
+        {/* Desktop Nav */}
+        <nav className="hidden md:flex items-center gap-8 px-8 py-3 rounded-full bg-white/10 border border-white/15">
+          {!isAuthenticated ? (
+            <>
+              <NavLink to="/">Home</NavLink>
+              <NavLink to="/check-status">Check Status</NavLink>
+              <NavLink to="/help">Help</NavLink>
+            </>
+          ) : (
+            <>
+              <NavLink to="/dashboard">Dashboard</NavLink>
+              {!isAdmin && !isStaff && (
+                <>
+                  <NavLink to="/submit-complaint">Submit Complaint</NavLink>
+                  <NavLink to="/complaint-history">My Complaints</NavLink>
+                </>
+              )}
+              {isStaff && (
+                <>
+                  <NavLink to="/staff">Staff Panel</NavLink>
+                  <NavLink to="/heatmap">Heatmap</NavLink>
+                </>
+              )}
+              {isAdmin && <NavLink to="/admin">Admin Panel</NavLink>}
+            </>
+          )}
+        </nav>
+
+        {/* Right side actions */}
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => setIsDark(!isDark)}
+            className="p-2 rounded-full bg-white/10 text-white hover:bg-white/20 transition-all duration-300"
+            aria-label="Toggle dark mode"
+          >
+            {isDark ? <Sun size={18} /> : <Moon size={18} />}
+          </button>
+
+          {!isAuthenticated ? (
+            <div className="hidden md:flex items-center gap-3">
+              <Link
+                to="/login"
+                className="px-4 py-1 bg-gradient-to-r from-[#63209F] to-[#222A79] text-white rounded-full text-sm font-medium font-outfit hover:opacity-90 transition-opacity"
+              >
+                Log in
+              </Link>
+              <Link
+                to="/register"
+                className="px-4 py-1 bg-gradient-to-r from-[#63209F] to-[#222A79] text-white rounded-full text-sm font-medium font-outfit hover:opacity-90 transition-opacity"
+              >
+                Register
+              </Link>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3">
+              <div className="hidden md:flex items-center gap-2">
+                <div className="text-white text-sm">
+                  <div className="font-medium">{user?.name || 'User'}</div>
+                  <div className="text-gray-400 capitalize text-xs">{user?.role}</div>
+                </div>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="hidden md:flex items-center gap-2 px-3 py-1 rounded-full text-sm text-red-400 hover:bg-red-500/20 transition-all duration-200"
+              >
+                <LogOut size={16} />
+                Logout
+              </button>
+            </div>
+          )}
+
+          {/* Mobile Menu Toggle */}
+          <button
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+            className="md:hidden p-2 rounded-md text-white hover:bg-white/10 transition-all"
+          >
+            {isMenuOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
+
+        {/* Mobile Menu */}
+        {isMenuOpen && (
+          <div className="md:hidden mt-4 bg-black/60 border border-white/10 rounded-xl p-4 space-y-3 backdrop-blur-md">
             {!isAuthenticated ? (
               <>
                 <NavLink to="/">Home</NavLink>
+                <NavLink to="/check-status">Check Status</NavLink>
+                <NavLink to="/help">Help</NavLink>
                 <NavLink to="/login">Login</NavLink>
                 <NavLink to="/register">Register</NavLink>
               </>
@@ -97,132 +152,26 @@ const Navbar = () => {
                     <NavLink to="/complaint-history">My Complaints</NavLink>
                   </>
                 )}
-                
                 {isStaff && (
                   <>
                     <NavLink to="/staff">Staff Panel</NavLink>
                     <NavLink to="/heatmap">Heatmap</NavLink>
                   </>
                 )}
-                
-                {isAdmin && (
-                  <NavLink to="/admin">Admin Panel</NavLink>
-                )}
-              </>
-            )}
-            
-            {/* Dark Mode Toggle (Desktop) - REVERTED TO LOCAL LOGIC */}
-            <button
-              onClick={() => setIsDark(!isDark)}
-              className="toggle-button p-2 rounded-full bg-gray-100 dark:bg-municipal-800 text-primary-600 dark:text-primary-400 hover:bg-gray-200 dark:hover:bg-municipal-700 transition-all duration-300"
-              aria-label="Toggle dark mode"
-            >
-              {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
-          </div>
+                {isAdmin && <NavLink to="/admin">Admin Panel</NavLink>}
 
-          {/* User Menu (Desktop) */}
-          {isAuthenticated && (
-            <div className="hidden md:flex items-center space-x-4">
-              <div className="flex items-center space-x-2">
-                <div className="w-8 h-8 bg-primary-100 dark:bg-primary-900/50 rounded-full flex items-center justify-center">
-                  <User className="w-4 h-4 text-primary-600 dark:text-primary-400" />
-                </div>
-                <div className="text-sm">
-                  <div className="font-medium text-gray-900 dark:text-white">{user?.name || 'User'}</div>
-                  <div className="text-gray-500 dark:text-gray-400 capitalize">{user?.role}</div> 
-                </div>
-              </div>
-              <button
-                onClick={handleLogout}
-                className="flex items-center space-x-1 px-3 py-2 text-sm text-gray-700 dark:text-gray-200 hover:text-red-600 dark:hover:text-red-400 hover:bg-gray-100 dark:hover:bg-municipal-800 rounded-md transition-all duration-200"
-              >
-                <LogOut className="w-4 h-4" />
-                <span>Logout</span>
-              </button>
-            </div>
-          )}
-
-          {/* Mobile Menu Button + Toggle */}
-          <div className="md:hidden flex items-center space-x-2">
-            {/* Theme Toggle is now part of this mobile control group - REVERTED TO LOCAL LOGIC */}
-            <button
-              onClick={() => setIsDark(!isDark)}
-              className="toggle-button p-2 rounded-full bg-gray-100 dark:bg-municipal-800 text-primary-600 dark:text-primary-400 hover:bg-gray-200 dark:hover:bg-municipal-700 transition-all duration-300"
-              aria-label="Toggle dark mode"
-            >
-              {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-            </button>
-            
-            <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="p-2 text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white hover:bg-gray-100 dark:hover:bg-municipal-800 rounded-md transition-all duration-200"
-            >
-              {isMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Mobile Menu */}
-      {isMenuOpen && (
-        <div className="md:hidden bg-white dark:bg-municipal-900 border-t border-gray-200 dark:border-municipal-700">
-          <div className="px-4 py-3 space-y-2">
-            
-            {/* Mobile Nav Links */}
-            {!isAuthenticated ? (
-              <>
-                <NavLink to="/" onClick={() => setIsMenuOpen(false)}>Home</NavLink>
-                <NavLink to="/login" onClick={() => setIsMenuOpen(false)}>Login</NavLink>
-                <NavLink to="/register" onClick={() => setIsMenuOpen(false)}>Register</NavLink>
-              </>
-            ) : (
-              <>
-                {/* User Info (Mobile) */}
-                <div className="flex items-center space-x-3 px-3 py-2 border-b border-gray-100 dark:border-municipal-800 mb-2">
-                  <div className="w-8 h-8 bg-primary-100 dark:bg-primary-900/50 rounded-full flex items-center justify-center">
-                    <User className="w-4 h-4 text-primary-600 dark:text-primary-400" />
-                  </div>
-                  <div className="text-sm">
-                    <div className="font-medium text-gray-900 dark:text-white">{user?.name || 'User'}</div>
-                    <div className="text-gray-500 dark:text-gray-400 capitalize">{user?.role}</div>
-                  </div>
-                </div>
-                
-                {/* Authenticated Links (Mobile) */}
-                <NavLink to="/dashboard" onClick={() => setIsMenuOpen(false)}>Dashboard</NavLink>
-                {!isAdmin && !isStaff && (
-                  <>
-                    <NavLink to="/submit-complaint" onClick={() => setIsMenuOpen(false)}>Submit Complaint</NavLink>
-                    <NavLink to="/complaint-history" onClick={() => setIsMenuOpen(false)}>My Complaints</NavLink>
-                  </>
-                )}
-                
-                {isStaff && (
-                  <>
-                    <NavLink to="/staff" onClick={() => setIsMenuOpen(false)}>Staff Panel</NavLink>
-                    <NavLink to="/heatmap" onClick={() => setIsMenuOpen(false)}>Heatmap</NavLink>
-                  </>
-                )}
-                
-                {isAdmin && (
-                  <NavLink to="/admin" onClick={() => setIsMenuOpen(false)}>Admin Panel</NavLink>
-                )}
-                
-                {/* Mobile Logout Button */}
                 <button
                   onClick={handleLogout}
-                  className="flex items-center space-x-2 w-full px-3 py-2 text-sm text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/50 rounded-md transition-all duration-200 mt-2"
+                  className="flex items-center gap-2 w-full text-sm text-red-400 hover:text-red-300 transition-all duration-200 mt-3"
                 >
-                  <LogOut className="w-4 h-4" />
-                  <span>Logout</span>
+                  <LogOut size={16} />
+                  Logout
                 </button>
               </>
             )}
-            
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </nav>
   );
 };

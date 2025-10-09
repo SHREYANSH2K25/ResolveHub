@@ -1,20 +1,19 @@
 import 'dotenv/config'
 import express from 'express'
 import mongoose from 'mongoose'
-import authRoutes from './src/routes/auth.js'
-import complaintRoutes from './src/routes/complaints.js'
-import adminRoutes from './src/routes/admin.js'
 import cors from 'cors'
+import session from 'express-session'
+import passport from 'passport'
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path'; 
 
 // Routes
-import authRoutes from "./src/routes/auth.js";
-import complaintRoutes from "./src/routes/complaints.js";
-import adminRoutes from "./src/routes/admin.js";
+import authRoutes from "./src/routes/auth.mjs";
+import complaintRoutes from "./src/routes/complaints.mjs";
+import adminRoutes from "./src/routes/admin.mjs";
 
-// ML model service (optional)
+// ML model service
 import { loadModels } from "./src/services/triageService.mjs";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -40,6 +39,9 @@ const initializeApp = async () => {
   
     const allowedOrigins = [
         'http://localhost:5173', 
+        'http://localhost:5174',
+        'http://127.0.0.1:5173',
+        'http://127.0.0.1:5174'
     ];
     const corsOptions = {
         origin: allowedOrigins,
@@ -84,4 +86,4 @@ const initializeApp = async () => {
     
 };
 
-startServer();
+initializeApp();

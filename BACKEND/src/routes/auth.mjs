@@ -129,54 +129,62 @@ const findOrCreateSocialUser = async ({
 };
 
 // Configure Google Strategy
-passport.use(
-  new GoogleStrategy(
-    {
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: process.env.GOOGLE_CALLBACK_URL, // e.g. http://localhost:5000/api/auth/google/callback
-    },
-    async (accessToken, refreshToken, profile, done) => {
-      try {
-        const user = await findOrCreateSocialUser({
-          provider: "google",
-          providerId: profile.id,
-          displayName: profile.displayName,
-          emails: profile.emails,
-        });
-        done(null, user);
-      } catch (err) {
-        done(err, null);
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET && process.env.GOOGLE_CALLBACK_URL) {
+  passport.use(
+    new GoogleStrategy(
+      {
+        clientID: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        callbackURL: process.env.GOOGLE_CALLBACK_URL, // e.g. http://localhost:5000/api/auth/google/callback
+      },
+      async (accessToken, refreshToken, profile, done) => {
+        try {
+          const user = await findOrCreateSocialUser({
+            provider: "google",
+            providerId: profile.id,
+            displayName: profile.displayName,
+            emails: profile.emails,
+          });
+          done(null, user);
+        } catch (err) {
+          done(err, null);
+        }
       }
-    }
-  )
-);
+    )
+  );
+} else {
+  console.warn('Google OAuth not configured: set GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET and GOOGLE_CALLBACK_URL to enable Google sign-in.');
+}
 
 // Configure GitHub Strategy
-passport.use(
-  new GitHubStrategy(
-    {
-      clientID: process.env.GITHUB_CLIENT_ID,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET,
-      callbackURL: process.env.GITHUB_CALLBACK_URL, // e.g. http://localhost:5000/api/auth/github/callback
-      scope: ["user:email"],
-    },
-    async (accessToken, refreshToken, profile, done) => {
-      try {
-        // Note: profile.emails may be undefined if GitHub email is private. passport-github2 usually provides emails array if scope includes user:email
-        const user = await findOrCreateSocialUser({
-          provider: "github",
-          providerId: profile.id,
-          displayName: profile.displayName || profile.username,
-          emails: profile.emails,
-        });
-        done(null, user);
-      } catch (err) {
-        done(err, null);
+if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET && process.env.GITHUB_CALLBACK_URL) {
+  passport.use(
+    new GitHubStrategy(
+      {
+        clientID: process.env.GITHUB_CLIENT_ID,
+        clientSecret: process.env.GITHUB_CLIENT_SECRET,
+        callbackURL: process.env.GITHUB_CALLBACK_URL, // e.g. http://localhost:5000/api/auth/github/callback
+        scope: ["user:email"],
+      },
+      async (accessToken, refreshToken, profile, done) => {
+        try {
+          // Note: profile.emails may be undefined if GitHub email is private. passport-github2 usually provides emails array if scope includes user:email
+          const user = await findOrCreateSocialUser({
+            provider: "github",
+            providerId: profile.id,
+            displayName: profile.displayName || profile.username,
+            emails: profile.emails,
+          });
+          done(null, user);
+        } catch (err) {
+          done(err, null);
+        }
       }
-    }
-  )
-);
+    )
+  );
+} else {
+  console.warn('GitHub OAuth not configured: set GITHUB_CLIENT_ID, GITHUB_CLIENT_SECRET and GITHUB_CALLBACK_URL to enable GitHub sign-in.');
+}
 
 // serialize / deserialize - store user id in session
 passport.serializeUser((user, done) => {

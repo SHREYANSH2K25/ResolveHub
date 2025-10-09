@@ -16,9 +16,9 @@ export const useAuth = () => {
 export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [token, setToken] = useState(localStorage.getItem('token'));
+  const [token, setToken] = useState(null);
 
-  // Helper to save token and set user
+  // Helper to store token
   const applyToken = (newToken) => {
     localStorage.setItem('token', newToken);
     setToken(newToken);
@@ -32,41 +32,60 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Initialize auth state on mount
   useEffect(() => {
-    // 1) Check for token in URL (OAuth redirect)
-    const params = new URLSearchParams(window.location.search);
-    const urlToken = params.get('token');
-    if (urlToken) {
-      applyToken(urlToken);
-      params.delete('token');
-      const newSearch = params.toString();
-      const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '');
-      window.history.replaceState({}, document.title, newUrl);
-      setLoading(false);
-      return;
-    }
-
-    // 2) Use token from localStorage
-    if (token) {
+    const initializeAuth = () => {
       try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        setUser(payload.user);
-        apiService.setAuthToken(token);
-      } catch (error) {
-        console.error('Invalid token:', error);
-        logout();
-      }
-    }
+        // 1) Check URL for token (social login redirect)
+        const params = new URLSearchParams(window.location.search);
+        const urlToken = params.get('token');
+        if (urlToken) {
+          // Save token and remove it from URL
+          applyToken(urlToken);
+          // Remove token param from URL without reloading
+          params.delete('token');
+          const newSearch = params.toString();
+          const newUrl = window.location.pathname + (newSearch ? `?${newSearch}` : '');
+          window.history.replaceState({}, document.title, newUrl);
+          setLoading(false);
+          return;
+        }
 
-    setLoading(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+        // 2) Use token from localStorage
+        const storedToken = localStorage.getItem('token');
+        if (storedToken) {
+          setToken(storedToken);
+          try {
+            const payload = JSON.parse(atob(storedToken.split('.')[1]));
+            setUser(payload.user);
+            apiService.setAuthToken(storedToken);
+          } catch (error) {
+            console.error('Invalid token:', error);
+            localStorage.removeItem('token');
+          }
+        }
+      } catch (error) {
+        console.error('Error initializing auth:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initializeAuth();
   }, []);
 
   const login = async (credentials) => {
     try {
       const response = await apiService.login(credentials);
       const { token: newToken } = response.data;
-      applyToken(newToken);
+
+      localStorage.setItem('token', newToken);
+      setToken(newToken);
+
+      const payload = JSON.parse(atob(newToken.split('.')[1]));
+      setUser(payload.user);
+      apiService.setAuthToken(newToken);
+
       toast.success('Login successful!');
       return true;
     } catch (error) {
@@ -80,7 +99,14 @@ export const AuthProvider = ({ children }) => {
     try {
       const response = await apiService.register(userData);
       const { token: newToken } = response.data;
-      applyToken(newToken);
+
+      localStorage.setItem('token', newToken);
+      setToken(newToken);
+
+      const payload = JSON.parse(atob(newToken.split('.')[1]));
+      setUser(payload.user);
+      apiService.setAuthToken(newToken);
+
       toast.success('Registration successful!');
       return true;
     } catch (error) {
@@ -103,21 +129,17 @@ export const AuthProvider = ({ children }) => {
   const isStaff = user?.role === 'staff' || user?.role === 'admin';
   const isCitizen = user?.role === 'citizen';
 
-  return (
-    <AuthContext.Provider
-      value={{
-        user,
-        loading,
-        isAuthenticated,
-        isAdmin,
-        isStaff,
-        isCitizen,
-        login,
-        register,
-        logout,
-      }}
-    >
-      {children}
-    </AuthContext.Provider>
-  );
+  const value = {
+    user,
+    loading,
+    isAuthenticated,
+    isAdmin,
+    isStaff,
+    isCitizen,
+    login,
+    register,
+    logout,
+  };
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 };

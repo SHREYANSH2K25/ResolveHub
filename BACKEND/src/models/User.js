@@ -32,6 +32,15 @@ const UserSchema = new mongoose.Schema({
     department : {
         type : String
     },
+      provider: {
+      type: String, // 'google' | 'github' | 'local'
+      default: "local",
+    },
+    providerId: {
+      type: String,
+      index: true,
+      sparse: true,
+    },
 
 },{timestamps : true});
 

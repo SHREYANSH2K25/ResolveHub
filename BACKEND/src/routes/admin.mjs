@@ -1,5 +1,5 @@
 import express from "express";
-import auth from "../middlewares/auth.js"
+import auth from "../middlewares/auth.mjs"
 import authorize from "../middlewares/rbac.js";
 import { User } from "../models/User.js";
 import {hashPassword} from "../services/authService.js"

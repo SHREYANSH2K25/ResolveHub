@@ -1,5 +1,5 @@
 import express from "express"
-import auth from "../middlewares/auth.js"
+import auth from "../middlewares/auth.mjs"
 import upload from "../middlewares/fileUpload.js"
 import cloudinary from "../config/cloudinaryConfig.js"
 import { runTriageandAssign } from "../services/triageService.mjs"
@@ -157,7 +157,10 @@ router.put('/:id/status', auth, authorize(['staff', 'admin']), async(req, res) =
             return res.status(404).json({msg : 'Complaint not found'});
         }
 
-        notifyCitizenOfStatusChange(complaint);
+        // Send notification in background (don't wait for it to complete)
+        notifyCitizenOfStatusChange(complaint).catch(error => {
+            console.error('Failed to send notification:', error);
+        });
 
         res.json({
             msg : `Complaint status updated to ${status}`,

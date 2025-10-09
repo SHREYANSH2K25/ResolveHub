@@ -2,6 +2,7 @@ import mongoose from "mongoose"
 
 const VerificationCodeSchema = new mongoose.Schema({
     code : {type : String, required : true, unique : true},
+    city: { type: String, required: true }, 
     expiresAt : {
         type : Date,
         required : true,

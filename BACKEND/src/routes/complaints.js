@@ -2,7 +2,7 @@ import express from "express"
 import auth from "../middlewares/auth.js"
 import upload from "../middlewares/fileUpload.js"
 import cloudinary from "../config/cloudinaryConfig.js"
-import { runTriageandAssign } from "../services/triageService.js"
+import { runTriageandAssign } from "../services/triageService.mjs"
 import {geocodeLocation} from "../services/geoCodingService.js"
 import {Complaint} from "../models/Complaint.js"
 import authorize from '../middlewares/rbac.js'

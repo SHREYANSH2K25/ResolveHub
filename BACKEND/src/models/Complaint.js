@@ -19,7 +19,7 @@ const ComplaintSchema = new mongoose.Schema({
     },
     status : {
         type : String,
-        enum : ['OPEN', 'IN PROGRESS', 'RESOLVED'],
+        enum : ['OPEN', 'IN PROGRESS', 'RESOLVED', 'AUTO-RESOLVED'],
         default : 'OPEN'
     },
     location : {

@@ -3,9 +3,12 @@ import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Navbar from './components/Navbar';
+
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
+import CheckStatusPage from './pages/CheckStatusPage';
+import HelpPage from './pages/HelpPage';
 import CitizenDashboard from './pages/CitizenDashboard';
 import StaffDashboard from './pages/StaffDashboard';
 import AdminDashboard from './pages/AdminDashboard';
@@ -18,7 +21,7 @@ function App() {
   return (
     <AuthProvider>
       <Router>
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-black">
           <Navbar />
           <main className="pt-16">
             <Routes>
@@ -26,53 +29,69 @@ function App() {
               <Route path="/" element={<HomePage />} />
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
-              
+              <Route path="/check-status" element={<CheckStatusPage />} />
+              <Route path="/help" element={<HelpPage />} />
+
               {/* Protected Routes */}
-              {/* Citizen Dashboard */}
-              <Route path="/dashboard" element={
-                <ProtectedRoute  roles={['citizen']}>
-                  <CitizenDashboard />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/staff" element={
-                <ProtectedRoute roles={['staff', 'admin']}>
-                  <StaffDashboard />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/admin" element={
-                <ProtectedRoute roles={['admin']}>
-                  <AdminDashboard />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/submit-complaint" element={
-                <ProtectedRoute roles={['citizen']}>
-                  <SubmitComplaint />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/complaint-history" element={
-                <ProtectedRoute roles={['citizen']}>
-                  <ComplaintHistory />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/heatmap" element={
-                <ProtectedRoute roles={['staff', 'admin']}>
-                  <HeatmapPage />
-                </ProtectedRoute>
-              } />
-              
-              <Route path="/profile" element={
-                <ProtectedRoute roles={['citizen', 'staff', 'admin']}>
-                  <ProfilePage />
-                </ProtectedRoute>
-              } />
+              <Route
+                path="/dashboard"
+                element={
+                  <ProtectedRoute roles={['citizen']}>
+                    <CitizenDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/staff"
+                element={
+                  <ProtectedRoute roles={['staff', 'admin']}>
+                    <StaffDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin"
+                element={
+                  <ProtectedRoute roles={['admin']}>
+                    <AdminDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/submit-complaint"
+                element={
+                  <ProtectedRoute roles={['citizen']}>
+                    <SubmitComplaint />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/complaint-history"
+                element={
+                  <ProtectedRoute roles={['citizen']}>
+                    <ComplaintHistory />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/heatmap"
+                element={
+                  <ProtectedRoute roles={['staff', 'admin']}>
+                    <HeatmapPage />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/profile"
+                element={
+                  <ProtectedRoute roles={['citizen', 'staff', 'admin']}>
+                    <ProfilePage />
+                  </ProtectedRoute>
+                }
+              />
             </Routes>
           </main>
-          <Toaster 
+          <Toaster
             position="top-right"
             toastOptions={{
               duration: 4000,

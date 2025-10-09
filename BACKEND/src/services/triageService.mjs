@@ -145,37 +145,3 @@ export const runTriageandAssign = async (mediaUrls, description) => {
 };
 
 
-// --- SELF-EXECUTING TEST FUNCTION ---
-const testTriageService = async () => {
-    try {
-        // 1. Call loadModels() to load the AI models first
-        await loadModels();
-
-        // 2. Define your test data
-        const testImageUrls = [
-            'https://res.cloudinary.com/dffrtqlgz/image/upload/v1759913861/khush_ki_bakchodi_i2mw8m.jpg',
-            'https://res.cloudinary.com/dffrtqlgz/image/upload/v1759913894/puja_mishra_mdfsx6.jpg'
-        ];
-        const testDescription = "Potholes and broken street lights on Elm Street.";
-
-        console.log('\n=======================================');
-        console.log('🤖 STARTING LIVE PREDICTION TEST');
-        console.log('=======================================');
-
-        const result = await runTriageandAssign(testImageUrls, testDescription);
-
-        console.log('\n✅ TEST SUCCESSFUL - Triage Result:');
-        console.log(JSON.stringify(result, null, 4));
-        console.log('=======================================\n');
-
-    } catch (error) {
-        console.error('\n❌ TEST FAILED - Critical Error in Triage:', error.message);
-        console.log('=======================================\n');
-    }
-    
-    // Clean up TensorFlow memory after the test
-    tf.disposeVariables(); 
-};
-
-// Execute the test function when the script runs
-// testTriageService();

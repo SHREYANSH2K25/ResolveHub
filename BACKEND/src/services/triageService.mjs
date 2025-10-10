@@ -14,8 +14,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 // --------------------------------------------------------
 
-import * as tf from '@tensorflow/tfjs';
-import * as tfn from '@tensorflow/tfjs-node';
+let tf, tfn;
+try {
+  tf = await import('@tensorflow/tfjs');
+  tfn = await import('@tensorflow/tfjs-node');
+} catch (error) {
+  console.warn('⚠️  TensorFlow not available. ML features will be disabled.');
+  tf = null;
+  tfn = null;
+}
 import * as fs from 'fs';
 import axios from 'axios'; 
 
@@ -31,6 +38,11 @@ let labels = [];
  * Pre-loads the models and labels into memory. Call this once when the server starts.
  */
 export const loadModels = async () => {
+    if (!tf || !tfn) {
+        console.warn('⚠️  TensorFlow not available. ML models will not be loaded.');
+        return;
+    }
+    
     try {
         // --- 1. Load Labels ---
         // 'labels.json' is assumed to be in the same directory (/src/services) based on the file structure image.
@@ -63,7 +75,7 @@ export const loadModels = async () => {
 
 // Function to download an image from a URL and preprocess it
 const loadRemoteImage = async (url) => {
-    if (!url) return null;
+    if (!url || !tf || !tfn) return null;
 
     try {
         const response = await axios.get(url, { responseType: 'arraybuffer' });
@@ -89,8 +101,15 @@ const loadRemoteImage = async (url) => {
  * @returns {Promise<{category: string, confidence: number, assignedToId: string}>}
  */
 export const runTriageandAssign = async (mediaUrls, description) => {
-    if (!mobilenetModel || !classificationModel || labels.length === 0) {
-        throw new Error("ML Models are not yet loaded. Please call loadModels() first.");
+    if (!tf || !tfn || !mobilenetModel || !classificationModel || labels.length === 0) {
+        console.warn('⚠️  ML models not available. Using fallback categorization.');
+        // Fallback logic when ML is not available
+        const ASSIGNED_STAFF_ID = '60c72b2f9011e00015b8b982'; 
+        return {
+            category: 'Infrastructure', // Default category
+            confidence: 0.5, // Default confidence
+            // assignedToId: ASSIGNED_STAFF_ID
+        };
     }
     
     // Placeholder assignment logic:

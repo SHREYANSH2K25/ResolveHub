@@ -37,8 +37,11 @@ router.post('/', auth, upload, async(req, res) => {
     }
 
     try {  
+        console.log('Starting complaint submission process...');
+        
         // handle multiple file uploads to cloudinary
         if(req.files && req.files.length > 0) {
+            console.log('Processing file uploads...');
 
             // map files to concurrent upload promises
             const uploadPromises = req.files.map(file => {
@@ -57,20 +60,26 @@ router.post('/', auth, upload, async(req, res) => {
             mediaUrls = uploadResults.map(result => result.secure_url);
         }
 
+        console.log('Running ML triage and geocoding...');
+        
         // calls ML contract service to determine category and assignment
         const triageResults = await runTriageandAssign(mediaUrls, description);
         category = triageResults.category;
+        console.log('Category detected:', category);
+        
         const { coordinates, city } = await geocodeLocation(rawAddress);
         finalCoordinates = coordinates;
         const detectedCity = city;
-
+        console.log('Detected city:', detectedCity);
+        console.log('Coordinates:', finalCoordinates);
+    
         const departmentMap = {
             Sanitation: "Sanitation",
             Plumbing: "Plumbing",
             Structural: "Structural",
             Electrical: "Electrical",
         }
-
+        
         const matchedDepartment = departmentMap[category] || null;
 
         // WHEN NORMAL COMPLAINT THEN ISSUE IS ALREADY RESOLVED
@@ -78,7 +87,9 @@ router.post('/', auth, upload, async(req, res) => {
             const autoComplaint = new Complaint({
                 submittedBy: req.user.id,
                 title,
+                description,
                 category : category,
+                city: detectedCity,
                 location : {type : 'Point', coordinates : finalCoordinates},
                 mediaUrls,
                 status : 'AUTO-CLOSED'
@@ -93,47 +104,68 @@ router.post('/', auth, upload, async(req, res) => {
             })
         }
 
-        // find staff or fallback to global admin
-        let staff = null;
-        if(detectedCity && matchedDepartment){
-            staff = await User.findOne({
-                role : "staff",
-                city : detectedCity,
-                department : matchedDepartment,
-            })
-        }
+        // Enhanced assignment logic based on priority hierarchy
+        let primaryAssignee = null;
+        let assignedUsers = [];
+        let assignmentMessage = "";
 
-        const globalAdmin = await User.findOne({role : "admin", city: "Global"});
+        // Find city admin
+        const cityAdmin = await User.findOne({role: "admin", city: detectedCity});
+        const globalAdmin = await User.findOne({role: "admin", city: "Global"});
+        
+        // Find all staff in the city
+        const cityStaff = await User.find({role: "staff", city: detectedCity});
+        
+        // Find department-specific staff in the city
+        const departmentStaff = await User.find({
+            role: "staff", 
+            city: detectedCity, 
+            department: matchedDepartment
+        });
 
-        if(!staff){
-            if(globalAdmin) {
-                assignedToId = globalAdmin._id;
-                console.log(
-                    `No staff found in ${detectedCity}. Assigned to Global Admin (${globalAdmin.email})`
-                );
+        console.log(`Assignment Logic for ${detectedCity}:`);
+        console.log(`- City Staff Count: ${cityStaff.length}`);
+        console.log(`- Department Staff Count: ${departmentStaff.length}`);
+        console.log(`- City Admin: ${cityAdmin?.name || 'None'}`);
 
-                notifyCitizenOfStatusChange(
-                    null,
-                    `Global Admin has been assigned complaint due to missing local staff for ${detectedCity}.`
-                );
-            } else {
-                console.warn("No Global Admin found - complaint unassigned.");
-                assignedToId = null;
+        if (cityStaff.length === 0) {
+            // Case 1: No staff in city → Assign to City Admin (or Global Admin as fallback)
+            primaryAssignee = cityAdmin || globalAdmin;
+            assignedUsers = [primaryAssignee._id];
+            assignmentMessage = `No staff available in ${detectedCity}. Assigned to ${primaryAssignee.name}.`;
+            console.log("Case 1: No staff in city");
+            
+        } else if (departmentStaff.length === 0) {
+            // Case 2: Staff exists but not for this department → Assign to City Admin
+            primaryAssignee = cityAdmin || globalAdmin;
+            assignedUsers = [primaryAssignee._id];
+            assignmentMessage = `No ${matchedDepartment} staff available in ${detectedCity}. Assigned to ${primaryAssignee.name}.`;
+            console.log("Case 2: No department staff");
+            
+        } else {
+            // Case 3: Department staff exists → Assign to both Department Staff AND City Admin
+            primaryAssignee = departmentStaff[0]; // Primary assignee is the staff member
+            assignedUsers = [departmentStaff[0]._id];
+            
+            if (cityAdmin) {
+                assignedUsers.push(cityAdmin._id);
             }
-        } else{
-            assignedToId = staff._id;
+            
+            assignmentMessage = `Assigned to ${departmentStaff[0].name} (${matchedDepartment} Staff) and ${cityAdmin?.name || 'City Admin'}.`;
+            console.log("Case 3: Department staff exists - dual assignment");
         }
-        // Create new complaint with assigned data
 
+        assignedToId = primaryAssignee?._id;
+        // Create new complaint with enhanced assignment data
         const newComplaint = new Complaint ({
             submittedBy : req.user.id,
-            
             title,
             description,
             category : category,
             city: detectedCity,
             department: matchedDepartment,
-            assignedTo : assignedToId,
+            assignedTo : assignedToId,  // Primary assignee
+            assignedUsers: assignedUsers,  // All assigned users
             location : {type : 'Point', coordinates : finalCoordinates},
             mediaUrls,  // Save the array of secure cloudinry urls
             status : 'OPEN'  // initiates the transparent complaint lifestyle
@@ -141,16 +173,24 @@ router.post('/', auth, upload, async(req, res) => {
 
         const complaint = await newComplaint.save();
 
+        // Send notification about assignment
+        if (assignmentMessage) {
+            notifyCitizenOfStatusChange(complaint, assignmentMessage);
+        }
+
         res.json({
-            msg : 'Complaint submitted and assigned.', 
+            msg : 'Complaint submitted and assigned successfully.', 
             complaintId : complaint._id, 
             assignedCategory : category, 
             assignedDepartment : matchedDepartment, 
-            assignedTo: assignedToId
+            assignedTo: assignedToId,
+            assignedUsers: assignedUsers.length,
+            assignmentDetails: assignmentMessage
         })
     }
     catch(err){
-        console.error('Submission error : ', err.message || err);
+        console.error('Submission error:', err);
+        console.error('Stack trace:', err.stack);
         res.status(500).json({msg : err.message || 'Server error during upload'});
     }
 })
@@ -179,18 +219,42 @@ router.get('/history', auth, authorize('citizen'), async(req, res) => {
 // Staff Dashboard
 router.get('/staff', auth, authorize(['staff', 'admin']), async(req, res) => {
     try {
+        // Get the current user's details
+        const currentUser = await User.findById(req.user.id);
+        if (!currentUser) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
 
-        // find complaints where status is not resolved
-        const complaints = await Complaint.find({
-            status : {
-                $in : ['OPEN', 'IN PROGRESS']
+        // Build filter query
+        let filter = {
+            status: {
+                $in: ['OPEN', 'IN_PROGRESS']
             }
-        })
-            // enrich the data with actual names and info
+        };
+
+        // Apply city-based filtering with new assignedUsers field
+        if (currentUser.role === 'staff') {
+            // Staff members see complaints where they are in assignedUsers or from their city
+            filter.$or = [
+                { city: currentUser.city },
+                { assignedUsers: req.user.id }, // New: Check if user is in assignedUsers array
+                { assignedTo: req.user.id } // Legacy: Still check primary assignee
+            ];
+        } else if (currentUser.role === 'admin' && currentUser.city !== 'Global') {
+            // City admin sees complaints from their city or where they are assigned
+            filter.$or = [
+                { city: currentUser.city },
+                { assignedUsers: req.user.id } // New: Check if admin is in assignedUsers array
+            ];
+        }
+        // Global admin sees all complaints (no additional filtering)
+
+        // Find complaints with the filter
+        const complaints = await Complaint.find(filter)
             .populate('submittedBy', 'name email')
-            .populate('assignedTo' , 'name department')
-            .sort({createdAt : -1});
-        
+            .populate('assignedTo', 'name department city')
+            .populate('assignedUsers', 'name role department city')
+            .sort({createdAt: -1});
 
         res.json(complaints);
     }
@@ -206,41 +270,83 @@ router.put('/:id/status', auth, authorize(['staff', 'admin']), async(req, res) =
     const {status} = req.body;
     const complaintId = req.params.id;
 
-    if(!['IN PROGRESS', 'RESOLVED'].includes(status)){
+    if(!['IN_PROGRESS', 'RESOLVED'].includes(status)){
         return res.status(400).json({msg : 'Invalid status provided.'});
     }
 
-    let updateFields = { status };
-
-    if(status == 'RESOLVED'){
-        updateFields.resolutionDate = new Date();
-    }
-
     try{
-        const complaint = await Complaint.findByIdAndUpdate(
+        // Get the current user's details
+        const currentUser = await User.findById(req.user.id);
+        if (!currentUser) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
+
+        // First, check if the complaint exists
+        const complaint = await Complaint.findById(complaintId);
+        if(!complaint){
+            return res.status(404).json({msg : 'Complaint not found'});
+        }
+
+        // Check access permissions based on user role and city
+        let hasAccess = false;
+        
+        if (currentUser.role === 'admin' && currentUser.city === 'Global') {
+            // Global admin can access all complaints
+            hasAccess = true;
+        } else if (currentUser.role === 'admin') {
+            // City admin can access complaints from their city
+            const cityStaff = await User.find({ 
+                role: 'staff', 
+                city: currentUser.city 
+            }).select('_id');
+            const staffIds = cityStaff.map(staff => staff._id);
+            
+            hasAccess = complaint.city === currentUser.city || 
+                       staffIds.some(id => id.equals(complaint.assignedTo));
+        } else if (currentUser.role === 'staff') {
+            // Staff can access complaints from their city or assigned to them
+            const cityStaff = await User.find({ 
+                role: 'staff', 
+                city: currentUser.city 
+            }).select('_id');
+            const staffIds = cityStaff.map(staff => staff._id);
+            
+            hasAccess = complaint.city === currentUser.city ||
+                       staffIds.some(id => id.equals(complaint.assignedTo)) ||
+                       complaint.assignedTo?.equals(req.user.id);
+        }
+
+        if (!hasAccess) {
+            return res.status(403).json({ msg: 'Access denied. You can only update complaints from your city.' });
+        }
+
+        let updateFields = { status };
+
+        if(status === 'RESOLVED'){
+            updateFields.resolutionDate = new Date();
+            updateFields.resolvedAt = new Date();
+        }
+
+        const updatedComplaint = await Complaint.findByIdAndUpdate(
             complaintId,
             { $set : updateFields},
             {new : true, runValidators : true}
         );
 
-        if(!complaint){
-            return res.status(404).json({msg : 'Complaint not found'});
-        }
-
         // add bonus based on resolutiontime
         if(status === 'RESOLVED'){
-            const staffId = complaint.assignedTo;
+            const staffId = updatedComplaint.assignedTo;
             if(staffId){
-                updateLeaderboardPoints(staffId, complaint, 'RESOLUTION');
+                updateLeaderboardPoints(staffId, updatedComplaint, 'RESOLUTION');
             }
         }
-        notifyCitizenOfStatusChange(complaint);
+        notifyCitizenOfStatusChange(updatedComplaint);
 
         res.json({
             msg : `Complaint status updated to ${status}`,
-            complaintId : complaint._id,
-            newStatus : complaint.status,
-            resolutionDate : complaint.resolutionDate
+            complaintId : updatedComplaint._id,
+            newStatus : updatedComplaint.status,
+            resolutionDate : updatedComplaint.resolutionDate
         });
     }
     catch (err) {

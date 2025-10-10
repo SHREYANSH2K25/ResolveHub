@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { Mail, Lock, Eye, EyeOff, LogIn, User, Users, Shield, Globe } from 'lucide-react';
 import {FaGithub} from 'react-icons/fa'
 
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 const LoginPage = () => {
   const [formData, setFormData] = useState({ email: '', password: '' });

@@ -19,7 +19,7 @@ const ComplaintSchema = new mongoose.Schema({
     },
     status : {
         type : String,
-        enum : ['OPEN', 'IN PROGRESS', 'RESOLVED', 'AUTO-RESOLVED'],
+        enum : ['OPEN', 'IN_PROGRESS', 'RESOLVED', 'AUTO-CLOSED'],
         default : 'OPEN'
     },
     location : {
@@ -30,14 +30,31 @@ const ComplaintSchema = new mongoose.Schema({
         },
         coordinates : {type : [Number], required : true},
     },
+    city : {
+        type : String,
+        default : null,
+    },
+    department: {
+        type: String,
+        enum: ['Sanitation', 'Plumbing', 'Structural', 'Electrical'],
+        default: null
+    },
     mediaUrls: [String],
     assignedTo : {
         type : mongoose.Schema.Types.ObjectId,
         ref: 'User',
         default : null
     },
+    assignedUsers: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        default: []
+    }],
     resolutionDate: { 
         type: Date 
+    },
+    resolvedAt: {
+        type: Date
     },
     feedbackRating: { 
         type: Number, min: 1, max: 5 

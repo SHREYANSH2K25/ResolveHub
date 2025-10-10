@@ -57,6 +57,7 @@ const Navbar = () => {
           {!isAuthenticated ? (
             <>
               <NavLink to="/">Home</NavLink>
+              <NavLink to="/about">About</NavLink>
               <NavLink to="/check-status">Check Status</NavLink>
               <NavLink to="/help">Help</NavLink>
             </>
@@ -69,10 +70,11 @@ const Navbar = () => {
                   <NavLink to="/complaint-history">My Complaints</NavLink>
                 </>
               )}
-              {isStaff && (
+              {(isStaff || isAdmin) && (
                 <>
                   <NavLink to="/staff">Staff Panel</NavLink>
                   <NavLink to="/heatmap">Heatmap</NavLink>
+                  <NavLink to="/statistics">Statistics</NavLink>
                 </>
               )}
               {isAdmin && <NavLink to="/admin">Admin Panel</NavLink>}

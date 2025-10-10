@@ -20,7 +20,7 @@ const UserSchema = new mongoose.Schema({
         type: String,
         required : function() {
             // only require city for privileged role
-            return this.role === 'staff' ;
+            return this.role === 'staff' || this.role === 'admin' ;
         }
     },
     password : {

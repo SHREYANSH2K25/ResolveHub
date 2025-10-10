@@ -8,7 +8,7 @@ import {FaGithub} from 'react-icons/fa'
 const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:5000';
 
 const LoginPage = () => {
-  const [formData, setFormData] = useState({ email: '', password: '' });
+  const [formData, setFormData] = useState({ email: '', password: '', city: '', department: '' });
   const [role, setRole] = useState('citizen');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -29,7 +29,20 @@ const LoginPage = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsLoading(true);
-    await login(formData);
+    
+    // Prepare login data based on role
+    const loginData = { email: formData.email, password: formData.password };
+    
+    if (role === 'admin' && formData.city) {
+      loginData.city = formData.city;
+    }
+    
+    if (role === 'staff' && formData.city && formData.department) {
+      loginData.city = formData.city;
+      loginData.department = formData.department;
+    }
+    
+    await login(loginData);
     setIsLoading(false);
   };
 
@@ -126,6 +139,46 @@ const LoginPage = () => {
                   </button>
                 </div>
               </div>
+
+              {/* City (for Admin and Staff) */}
+              {(role === 'admin' || role === 'staff') && (
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-300">
+                    City {role === 'admin' ? '(Admin Cities: Global, Delhi, Mumbai, Prayagraj, Chennai, Jaipur)' : ''}
+                  </label>
+                  <div className="relative group">
+                    <Globe className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-purple-400 transition-colors" />
+                    <input
+                      name="city"
+                      type="text"
+                      required={role === 'admin' || role === 'staff'}
+                      value={formData.city}
+                      onChange={handleChange}
+                      placeholder={role === 'admin' ? 'Global, Delhi, Mumbai, etc.' : 'Enter your city'}
+                      className="w-full pl-12 pr-4 py-3 bg-gray-900/40 border border-gray-700/30 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-purple-500/50 focus:bg-gray-900/50 transition-all duration-300 backdrop-blur-sm"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Department (for Staff only) */}
+              {role === 'staff' && (
+                <div className="space-y-2">
+                  <label className="block text-sm font-medium text-gray-300">Department</label>
+                  <div className="relative group">
+                    <Users className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 group-focus-within:text-purple-400 transition-colors" />
+                    <input
+                      name="department"
+                      type="text"
+                      required={role === 'staff'}
+                      value={formData.department}
+                      onChange={handleChange}
+                      placeholder="Enter your department"
+                      className="w-full pl-12 pr-4 py-3 bg-gray-900/40 border border-gray-700/30 rounded-xl text-white placeholder-gray-400 focus:outline-none focus:border-purple-500/50 focus:bg-gray-900/50 transition-all duration-300 backdrop-blur-sm"
+                    />
+                  </div>
+                </div>
+              )}
 
               {/* Submit */}
               <button type="submit" disabled={isLoading} className="relative w-full group mt-6">

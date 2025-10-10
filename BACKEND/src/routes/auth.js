@@ -185,54 +185,62 @@ const findOrCreateSocialUser = async ({
   return newUser;
 };
 
-// Configure Google Strategy
-passport.use(
-  new GoogleStrategy(
-    {
-      clientID: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      callbackURL: process.env.GOOGLE_CALLBACK_URL,
-    },
-    async (accessToken, refreshToken, profile, done) => {
-      try {
-        const user = await findOrCreateSocialUser({
-          provider: "google",
-          providerId: profile.id,
-          displayName: profile.displayName,
-          emails: profile.emails,
-        });
-        done(null, user);
-      } catch (err) {
-        done(err, null);
+// Configure Google Strategy (if credentials are provided)
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  passport.use(
+    new GoogleStrategy(
+      {
+        clientID: process.env.GOOGLE_CLIENT_ID,
+        clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+        callbackURL: process.env.GOOGLE_CALLBACK_URL,
+      },
+      async (accessToken, refreshToken, profile, done) => {
+        try {
+          const user = await findOrCreateSocialUser({
+            provider: "google",
+            providerId: profile.id,
+            displayName: profile.displayName,
+            emails: profile.emails,
+          });
+          done(null, user);
+        } catch (err) {
+          done(err, null);
+        }
       }
-    }
-  )
-);
+    )
+  );
+} else {
+  console.warn("Google OAuth credentials not configured. Google authentication will be disabled.");
+}
 
-// Configure GitHub Strategy
-passport.use(
-  new GitHubStrategy(
-    {
-      clientID: process.env.GITHUB_CLIENT_ID,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET,
-      callbackURL: process.env.GITHUB_CALLBACK_URL,
-      scope: ["user:email"],
-    },
-    async (accessToken, refreshToken, profile, done) => {
-      try {
-        const user = await findOrCreateSocialUser({
-          provider: "github",
-          providerId: profile.id,
-          displayName: profile.displayName || profile.username,
-          emails: profile.emails,
-        });
-        done(null, user);
-      } catch (err) {
-        done(err, null);
+// Configure GitHub Strategy (if credentials are provided)
+if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
+  passport.use(
+    new GitHubStrategy(
+      {
+        clientID: process.env.GITHUB_CLIENT_ID,
+        clientSecret: process.env.GITHUB_CLIENT_SECRET,
+        callbackURL: process.env.GITHUB_CALLBACK_URL,
+        scope: ["user:email"],
+      },
+      async (accessToken, refreshToken, profile, done) => {
+        try {
+          const user = await findOrCreateSocialUser({
+            provider: "github",
+            providerId: profile.id,
+            displayName: profile.displayName || profile.username,
+            emails: profile.emails,
+          });
+          done(null, user);
+        } catch (err) {
+          done(err, null);
+        }
       }
-    }
-  )
-);
+    )
+  );
+} else {
+  console.warn("GitHub OAuth credentials not configured. GitHub authentication will be disabled.");
+}
 
 // serialize / deserialize for session
 passport.serializeUser((user, done) => done(null, user.id));
@@ -249,38 +257,42 @@ passport.deserializeUser(async (id, done) => {
  * SOCIAL ROUTES
  */
 
-// Google OAuth
-router.get(
-  "/google",
-  passport.authenticate("google", { scope: ["profile", "email"] })
-);
-router.get(
-  "/google/callback",
-  passport.authenticate("google", {
-    failureRedirect: `${process.env.FRONTEND_URL}/oauth-failure`,
-    session: false,
-  }),
-  (req, res) => {
-    const token = generateToken(req.user.id, req.user.role);
-    res.redirect(`${process.env.FRONTEND_URL}/oauth-success?token=${token}`);
-  }
-);
+// Google OAuth (only if configured)
+if (process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET) {
+  router.get(
+    "/google",
+    passport.authenticate("google", { scope: ["profile", "email"] })
+  );
+  router.get(
+    "/google/callback",
+    passport.authenticate("google", {
+      failureRedirect: `${process.env.FRONTEND_URL}/oauth-failure`,
+      session: false,
+    }),
+    (req, res) => {
+      const token = generateToken(req.user.id, req.user.role);
+      res.redirect(`${process.env.FRONTEND_URL}/oauth-success?token=${token}`);
+    }
+  );
+}
 
-// GitHub OAuth
-router.get(
-  "/github",
-  passport.authenticate("github", { scope: ["user:email"] })
-);
-router.get(
-  "/github/callback",
-  passport.authenticate("github", {
-    failureRedirect: `${process.env.FRONTEND_URL}/oauth-failure`,
-    session: false,
-  }),
-  (req, res) => {
-    const token = generateToken(req.user.id, req.user.role);
-    res.redirect(`${process.env.FRONTEND_URL}/oauth-success?token=${token}`);
-  }
-);
+// GitHub OAuth (only if configured)
+if (process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET) {
+  router.get(
+    "/github",
+    passport.authenticate("github", { scope: ["user:email"] })
+  );
+  router.get(
+    "/github/callback",
+    passport.authenticate("github", {
+      failureRedirect: `${process.env.FRONTEND_URL}/oauth-failure`,
+      session: false,
+    }),
+    (req, res) => {
+      const token = generateToken(req.user.id, req.user.role);
+      res.redirect(`${process.env.FRONTEND_URL}/oauth-success?token=${token}`);
+    }
+  );
+}
 
 export default router;

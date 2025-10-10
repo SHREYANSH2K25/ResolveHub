@@ -1,12 +1,14 @@
 import express from "express"
-import auth from "../middlewares/auth.mjs"
+import auth from "../middlewares/auth.js"
 import upload from "../middlewares/fileUpload.js"
 import cloudinary from "../config/cloudinaryConfig.js"
 import { runTriageandAssign } from "../services/triageService.mjs"
 import {geocodeLocation} from "../services/geoCodingService.js"
 import {Complaint} from "../models/Complaint.js"
+import { User } from "../models/User.js"
 import authorize from '../middlewares/rbac.js'
 import { notifyCitizenOfStatusChange } from "../services/notificationService.js"
+import { updateLeaderboardPoints } from "../services/gamificationService.js"
 const router = express.Router();
 
 // helper to convert bufer(binary data) to string for cloudianry to accept
@@ -35,7 +37,6 @@ router.post('/', auth, upload, async(req, res) => {
     }
 
     try {  
-        finalCoordinates = await geocodeLocation(rawAddress);
         // handle multiple file uploads to cloudinary
         if(req.files && req.files.length > 0) {
 
@@ -57,26 +58,96 @@ router.post('/', auth, upload, async(req, res) => {
         }
 
         // calls ML contract service to determine category and assignment
-        const triageResults = await runTriageandAssign(mediaUrls[0], description);
+        const triageResults = await runTriageandAssign(mediaUrls, description);
         category = triageResults.category;
-        assignedToId = triageResults.assignedToId;
+        const { coordinates, city } = await geocodeLocation(rawAddress);
+        finalCoordinates = coordinates;
+        const detectedCity = city;
 
+        const departmentMap = {
+            Sanitation: "Sanitation",
+            Plumbing: "Plumbing",
+            Structural: "Structural",
+            Electrical: "Electrical",
+        }
+
+        const matchedDepartment = departmentMap[category] || null;
+
+        // WHEN NORMAL COMPLAINT THEN ISSUE IS ALREADY RESOLVED
+        if(category === "Normal"){
+            const autoComplaint = new Complaint({
+                submittedBy: req.user.id,
+                title,
+                category : category,
+                location : {type : 'Point', coordinates : finalCoordinates},
+                mediaUrls,
+                status : 'AUTO-CLOSED'
+            })
+
+            await autoComplaint.save();
+
+            notifyCitizenOfStatusChange(autoComplaint, "Auto-closed as no issue detected.")
+            return res.json({
+                msg : "Complaint detected as 'Normal' and auto-closed by system.",
+                complaintId: autoComplaint._id,
+            })
+        }
+
+        // find staff or fallback to global admin
+        let staff = null;
+        if(detectedCity && matchedDepartment){
+            staff = await User.findOne({
+                role : "staff",
+                city : detectedCity,
+                department : matchedDepartment,
+            })
+        }
+
+        const globalAdmin = await User.findOne({role : "admin", city: "Global"});
+
+        if(!staff){
+            if(globalAdmin) {
+                assignedToId = globalAdmin._id;
+                console.log(
+                    `No staff found in ${detectedCity}. Assigned to Global Admin (${globalAdmin.email})`
+                );
+
+                notifyCitizenOfStatusChange(
+                    null,
+                    `Global Admin has been assigned complaint due to missing local staff for ${detectedCity}.`
+                );
+            } else {
+                console.warn("No Global Admin found - complaint unassigned.");
+                assignedToId = null;
+            }
+        } else{
+            assignedToId = staff._id;
+        }
         // Create new complaint with assigned data
+
         const newComplaint = new Complaint ({
             submittedBy : req.user.id,
+            
             title,
             description,
             category : category,
+            city: detectedCity,
+            department: matchedDepartment,
             assignedTo : assignedToId,
             location : {type : 'Point', coordinates : finalCoordinates},
-            mediaUrls : mediaUrls,  // Save the array of secure cloudinry urls
+            mediaUrls,  // Save the array of secure cloudinry urls
             status : 'OPEN'  // initiates the transparent complaint lifestyle
         })
 
         const complaint = await newComplaint.save();
 
-        res.json({msg : 'Complaint submitted and assigned.', complaintId : complaint._id, assignedCategory : category})
-
+        res.json({
+            msg : 'Complaint submitted and assigned.', 
+            complaintId : complaint._id, 
+            assignedCategory : category, 
+            assignedDepartment : matchedDepartment, 
+            assignedTo: assignedToId
+        })
     }
     catch(err){
         console.error('Submission error : ', err.message || err);
@@ -134,7 +205,6 @@ router.get('/staff', auth, authorize(['staff', 'admin']), async(req, res) => {
 router.put('/:id/status', auth, authorize(['staff', 'admin']), async(req, res) => {
     const {status} = req.body;
     const complaintId = req.params.id;
-    const staffId = req.user.id;
 
     if(!['IN PROGRESS', 'RESOLVED'].includes(status)){
         return res.status(400).json({msg : 'Invalid status provided.'});
@@ -157,10 +227,14 @@ router.put('/:id/status', auth, authorize(['staff', 'admin']), async(req, res) =
             return res.status(404).json({msg : 'Complaint not found'});
         }
 
-        // Send notification in background (don't wait for it to complete)
-        notifyCitizenOfStatusChange(complaint).catch(error => {
-            console.error('Failed to send notification:', error);
-        });
+        // add bonus based on resolutiontime
+        if(status === 'RESOLVED'){
+            const staffId = complaint.assignedTo;
+            if(staffId){
+                updateLeaderboardPoints(staffId, complaint, 'RESOLUTION');
+            }
+        }
+        notifyCitizenOfStatusChange(complaint);
 
         res.json({
             msg : `Complaint status updated to ${status}`,
@@ -216,7 +290,22 @@ router.post('/:id/feedback', auth, authorize('citizen'), async(req, res) => {
             {
                 new: true, runValidators: true
             }
-        );
+        );  
+
+        // add bonus based on feedback
+        if(updatedComplaint.status === 'RESOLVED' && updatedComplaint.assignedTo){
+            const staffId = updatedComplaint.assignedTo;
+            updateLeaderboardPoints(staffId, updatedComplaint, 'FEEDBACK');
+        }
+        if (rating <= 2) {
+            const globalAdmin = await User.findOne({ role: "admin", city: "Global" });
+            if (globalAdmin) {
+                notifyCitizenOfStatusChange(
+                updatedComplaint,
+                `Low feedback alert: Complaint ${complaintId} rated ${rating}/5. Global admin notified.`
+                );
+            }
+        }
 
         res.json({msg: 'Feedback recorded successflly.', complaintId: updatedComplaint._id});
     }

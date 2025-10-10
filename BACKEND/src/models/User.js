@@ -16,6 +16,13 @@ const UserSchema = new mongoose.Schema({
         unique: true,
         sparse: true 
     },
+    city : {
+        type: String,
+        required : function() {
+            // only require city for privileged role
+            return this.role === 'staff' ;
+        }
+    },
     password : {
         type : String,
         required : true
@@ -29,17 +36,20 @@ const UserSchema = new mongoose.Schema({
         type : Number,
         default : 0
     },
+    resolutionStreak: {
+        type : Number,
+        default : 0
+    },
+    topFixerBadge : {
+        type : String,
+        default : null
+    },
     department : {
-        type : String
-    },
-      provider: {
-      type: String, // 'google' | 'github' | 'local'
-      default: "local",
-    },
-    providerId: {
-      type: String,
-      index: true,
-      sparse: true,
+        type : String,
+        enum: ['Sanitation', 'Structural', 'Plumbing', 'Electrical', null],
+        required : function() {
+            return this.role === 'staff'
+        }
     },
 
 },{timestamps : true});

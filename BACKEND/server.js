@@ -9,9 +9,9 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path'; 
 
 // Routes
-import authRoutes from "./src/routes/auth.mjs";
-import complaintRoutes from "./src/routes/complaints.mjs";
-import adminRoutes from "./src/routes/admin.mjs";
+import authRoutes from "./src/routes/auth.js";
+import complaintRoutes from "./src/routes/complaints.js";
+import adminRoutes from "./src/routes/admin.js";
 
 // ML model service
 import { loadModels } from "./src/services/triageService.mjs";

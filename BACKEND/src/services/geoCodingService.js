@@ -11,7 +11,6 @@ export const geocodeLocation = async(rawAddress) => {
     try {
         // executing location lookup
         const response = await axios.get(GOOGLE_GEOCODE_URL, {
-
             // authenticating req and specifying address to be searched
             params : {
                 address : rawAddress,
@@ -25,11 +24,19 @@ export const geocodeLocation = async(rawAddress) => {
         if(data.status !== 'OK' || data.results.length === 0){
             throw new Error(`Location lookup failed : ${data.status}`);
         }
+        const { lat, lng } = data.results[0].geometry.location;
 
-        // extracting precise 2d coordinates
-        const {lat, lng} = data.results[0].geometry.location;
+        const components = data.results[0].address_components;
+        const cityComponent = 
+            components.find((c) => c.types.includes("locality")) ||
+            components.find((c) => c.types.includes("administrative_area_level_2")) ||
+            components.find((c) => c.types.includes("administrative_area_level_1"))
 
-        return[lng, lat];
+        const city = cityComponent?.long_name || "Unknown";
+        return{
+            coordinates : [lng, lat],
+            city,
+        };
     }
     catch(err){
         console.error('Geocoding API Error', err.message)

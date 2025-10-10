@@ -4,54 +4,109 @@ import passport from "passport";
 import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import { Strategy as GitHubStrategy } from "passport-github2";
 import crypto from "crypto";
-
 import { User } from "../models/User.js";
 import {
   hashPassword,
   comparePassword,
   generateToken,
 } from "../services/authService.js";
+import {VerificationCode} from "../models/Verificationmodel.js"
 
 const router = express.Router();
 
-/**
- * LOCAL AUTH
- */
+const getGlobalAdmin = async () => await User.findOne({ role: 'admin', city: 'Global' });
+
+const getCitiesWithAdmin = async() => {
+    const admins = await User.find({
+        role : 'admin'
+    }).select('city');
+    return admins.map(a => a.city);
+}
 
 // Register User
 router.post("/register", async (req, res) => {
-  const { name, email, password, role, phone, department } = req.body;
+    const { name, email, password, role : desiredRole, department, city, verificationcode } = req.body;
 
-  try {
-    let user = await User.findOne({ email });
-    if (user) return res.status(400).json({ msg: "User already exists" });
+    try {
+        let user = await User.findOne({ email });
+        if (user) return res.status(400).json({ msg: "User already exists" });
+        // Initialize default user data
+        let finalRole = 'citizen'
+        let finalCity = null
+        let finalDepartment = null
 
-    // Create new user instance
-    user = new User({
-      name,
-      email,
-      password: "", // will hash below
-      role: role || "citizen",
-      phone,
-      department,
-      provider: "local",
-    });
+        const citiesWithAdmin = await getCitiesWithAdmin()
+        
+        // prevent admin registeration
+        if (desiredRole === 'admin') {
+        return res
+            .status(403)
+            .json({ msg: 'Admin cannot register via this endpoint. Contact system administrator.' })
+        }
+        
+        if(desiredRole === 'staff'){
+            if (!city || !department) {
+                return res.status(400).json({ msg: 'City and Department are required for registration.' })
+            }
 
-    // Hash password
-    user.password = await hashPassword(password);
-    await user.save();
+            if(!citiesWithAdmin.map(c => c.toLowerCase()).includes(city.toLowerCase())){
+                return res
+                    .status(403)
+                    .json({msg: `Staff registration for ${city} is not available as no admin exists yet`})
+            }
 
-    const token = generateToken(user.id, user.role);
-    res.json({ token });
-  } catch (err) {
-    console.error(err.message);
-    res.status(500).send("Server error");
-  }
+            const validCode = await VerificationCode.findOne({
+                code : verificationcode, used:false, city
+            })
+            if (!validCode || !validCode.expiresAt || validCode.expiresAt < new Date()) {
+                return res.status(403).json({ msg: 'Invalid or expired code. Please verify your code.' })
+            }
+
+            finalRole = 'staff'
+            finalCity = city
+            finalDepartment = department
+            
+            validCode.used = true
+            await validCode.save()
+        }
+
+        if(finalRole === 'citizen'){
+            if (city && !citiesWithAdmin.map(c => c.toLowerCase()).includes(city.toLowerCase())) {
+                const gAdmin = await getGlobalAdmin() 
+                const gAdminEmail = gAdmin ? gAdmin.email : 'No global admin yet'
+                console.log(
+                `Citizen registered for city ${city} with no admin yet. Global Admin (${gAdminEmail}) will handle complaints temporarily.`
+                )
+            }
+            finalCity = city || null;
+            finalDepartment = null;
+        }
+
+        // create new user
+         user = new User({
+            name,
+            email,
+            password,
+            role: finalRole,
+            city: finalCity,
+            department: finalDepartment
+        })
+
+        // Hash password
+        user.password = await hashPassword(password);
+        await user.save();
+
+        const token = generateToken(user.id, user.role);
+        res.json({ token, role : user.role });
+    } catch (err) {
+        console.error(err.message);
+        res.status(500).send("Server error");
+    }
 });
 
-// Local login
+// login
 router.post("/login", async (req, res) => {
-  const { email, password } = req.body;
+  const { email, password, city, department } = req.body;
 
   try {
     let user = await User.findOne({ email });
@@ -59,24 +114,34 @@ router.post("/login", async (req, res) => {
 
     if (!user.password) {
       return res.status(400).json({
-        msg: "No local password for this user. Use social login or reset password.",
+        msg: "No password for this user. Use social login or reset password.",
       });
     }
 
     const isMatch = await comparePassword(password, user.password);
     if (!isMatch) return res.status(400).json({ msg: "Invalid Credentials" });
+    
+    // Admin city validation
+    if (user.role === 'admin') {
+      if (!city || user.city !== city) {
+        return res.status(403).json({ msg: 'Invalid city for admin login' })
+      }
+    }
+
+    // Staff validation (city + dept)
+    if (user.role === 'staff') {
+      if (!city || !department || user.city !== city || user.department !== department) {
+        return res.status(403).json({ msg: 'Invalid city or department for staff login' })
+      }
+    }
 
     const token = generateToken(user.id, user.role);
-    res.json({ token });
+    res.json({ token, role : user.role, city : user.city });
   } catch (err) {
     console.error(err.message);
     res.status(500).send("Server error");
   }
 });
-
-/**
- * SOCIAL AUTH
- */
 
 // Helper: find or create social user
 const findOrCreateSocialUser = async ({

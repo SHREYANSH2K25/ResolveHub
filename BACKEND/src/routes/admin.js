@@ -8,7 +8,7 @@ import { VerificationCode } from "../models/Verificationmodel.js";
 const router = express.Router();
 
 router.post('/users', auth, authorize('admin'), async(req, res) => {
-    const { name, email, password, city} = req.body;
+    const { name, email, password, city, department} = req.body;
     
     try{
         const admin = await User.findById(req.user.id);
@@ -20,8 +20,14 @@ router.post('/users', auth, authorize('admin'), async(req, res) => {
             return res.status(400).json({ msg: 'Department is required for creating staff member.' });
         }
 
+        // Validate department enum
+        const validDepartments = ['Sanitation', 'Structural', 'Plumbing', 'Electrical'];
+        if (!validDepartments.includes(department.trim())) {
+            return res.status(400).json({ msg: 'Invalid department. Must be one of: ' + validDepartments.join(', ') });
+        }
+
         let user = await User.findOne({email});
-        if(user) return user.status(400).json({msg : 'User already exists'});
+        if(user) return res.status(400).json({msg : 'User already exists'});
 
         user = new User({
             name, 
@@ -29,14 +35,14 @@ router.post('/users', auth, authorize('admin'), async(req, res) => {
             password, 
             city : admin.city,
             role: 'staff',
-            department: department.trime()
+            department: department.trim()
         });
 
         user.password = await hashPassword(password);
         await user.save();
 
         res.json({
-            msg : `Staff user created for ${city} successfully and provisioned`,
+            msg : `Staff user created for ${admin.city} successfully and provisioned`,
             userId : user.id,
             role : user.role,
             city : user.city,

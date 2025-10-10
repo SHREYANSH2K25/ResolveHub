@@ -11,14 +11,15 @@ import {
   Mail, 
   Lock,
   Eye,
-  EyeOff
+  EyeOff,
+  Building2
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
   const [showCreateForm, setShowCreateForm] = useState(false);
-  const [formData, setFormData] = useState({ name: '', email: '', password: '' });
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', department: '' });
   const [showPassword, setShowPassword] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
   const [errors, setErrors] = useState({});
@@ -35,6 +36,7 @@ const AdminDashboard = () => {
     else if (!/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Invalid email';
     if (!formData.password) newErrors.password = 'Password is required';
     else if (formData.password.length < 6) newErrors.password = 'At least 6 characters';
+    if (!formData.department) newErrors.department = 'Department is required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -50,10 +52,11 @@ const AdminDashboard = () => {
       await apiService.createStaffUser({
         name: formData.name.trim(),
         email: formData.email.trim(),
-        password: formData.password
+        password: formData.password,
+        department: formData.department
       });
       toast.success('Staff user created successfully!');
-      setFormData({ name: '', email: '', password: '' });
+      setFormData({ name: '', email: '', password: '', department: '' });
       setShowCreateForm(false);
     } catch (error) {
       const message = error.response?.data?.msg || 'Failed to create staff user';
@@ -248,6 +251,39 @@ const AdminDashboard = () => {
                     </p>
                   </div>
 
+                  {/* Department */}
+                  <div>
+                    <label htmlFor="department" className="block text-sm font-medium text-gray-300 mb-2">
+                      Department *
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <Building2 className="h-5 w-5 text-gray-400" />
+                      </div>
+                      <select
+                        id="department"
+                        name="department"
+                        value={formData.department}
+                        onChange={handleChange}
+                        className={`w-full pl-10 pr-4 py-3 bg-gray-800/50 backdrop-blur-sm border rounded-lg text-white focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition-all duration-300 ${
+                          errors.department ? 'border-red-500 focus:ring-red-500' : 'border-gray-600/50'
+                        }`}
+                      >
+                        <option value="" className="bg-gray-800 text-gray-400">Select Department</option>
+                        <option value="Sanitation" className="bg-gray-800 text-white">Sanitation</option>
+                        <option value="Structural" className="bg-gray-800 text-white">Structural</option>
+                        <option value="Plumbing" className="bg-gray-800 text-white">Plumbing</option>
+                        <option value="Electrical" className="bg-gray-800 text-white">Electrical</option>
+                      </select>
+                    </div>
+                    {errors.department && (
+                      <p className="mt-1 text-sm text-red-400">{errors.department}</p>
+                    )}
+                    <p className="mt-1 text-xs text-gray-400">
+                      Staff member will be assigned to handle complaints in this department.
+                    </p>
+                  </div>
+
                   {/* Permissions Box */}
                   <div className="bg-blue-500/10 border border-blue-500/30 rounded-lg p-4 backdrop-blur-sm">
                     <h4 className="text-sm font-medium text-blue-300 mb-2">
@@ -267,7 +303,7 @@ const AdminDashboard = () => {
                       type="button"
                       onClick={() => {
                         setShowCreateForm(false);
-                        setFormData({ name: '', email: '', password: '' });
+                        setFormData({ name: '', email: '', password: '', department: '' });
                         setErrors({});
                       }}
                       className="px-6 py-3 bg-gray-800/50 hover:bg-gray-700/50 text-gray-200 border border-gray-600/50 rounded-lg backdrop-blur-sm transition-all duration-300"

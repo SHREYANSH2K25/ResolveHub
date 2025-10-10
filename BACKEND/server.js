@@ -40,13 +40,29 @@ const initializeApp = async () => {
     const allowedOrigins = [
         'http://localhost:5173', 
         'http://localhost:5174',
+        'http://localhost:5175',
         'http://127.0.0.1:5173',
-        'http://127.0.0.1:5174'
+        'http://127.0.0.1:5174',
+        'http://127.0.0.1:5175',
     ];
     const corsOptions = {
-        origin: allowedOrigins,
+        origin: function (origin, callback) {
+            // Allow requests with no origin (like mobile apps or curl requests)
+            if (!origin) return callback(null, true);
+            
+            if (allowedOrigins.some(allowed => {
+                if (typeof allowed === 'string') return allowed === origin;
+                return allowed.test(origin);
+            })) {
+                callback(null, true);
+            } else {
+                console.log('CORS blocked origin:', origin);
+                callback(new Error('Not allowed by CORS'));
+            }
+        },
         methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
         credentials: true,
+        optionsSuccessStatus: 200
     };
     app.use(cors(corsOptions));
     app.use(express.json());

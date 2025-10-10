@@ -20,86 +20,144 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
 const app = express();
+
 const PORT = process.env.PORT || 5000;
 
 // ---------------- Database Connection ----------------
 const connectDB = async () => {
-  try {
-    await mongoose.connect(process.env.MONGO_URI);
-    console.log("MongoDB connected successfully");
-  } catch (err) {
-    console.error("MongoDB connection error : ", err.message);
-    process.exit(1);
-  }
+  try {
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("MongoDB connected successfully");
+  } catch (err) {
+    console.error("MongoDB connection error : ", err.message);
+    process.exit(1);
+  }
 };
 
 
 
 const initializeApp = async () => {
-  
+    
+    // Add all development origins and include an environment variable 
+    // for your deployed "universal site" (e.g., Vercel, Netlify URL).
     const allowedOrigins = [
+        'http://localhost:5174', // Primary frontend port
+        'http://127.0.0.1:5174', // Primary frontend port
         'http://localhost:5173', 
-        'http://localhost:5174',
         'http://localhost:5175',
         'http://127.0.0.1:5173',
-        'http://127.0.0.1:5174',
         'http://127.0.0.1:5175',
-    ];
+        'http://127.0.0.1:5176', // Origin from the error message is confirmed here
+        process.env.FRONTEND_URL, // IMPORTANT: Set this in your .env for the deployed site
+    ].filter(Boolean); // Filters out undefined/null if FRONTEND_URL is not set
+
     const corsOptions = {
-        origin: function (origin, callback) {
-            // Allow requests with no origin (like mobile apps or curl requests)
-            if (!origin) return callback(null, true);
+        origin: function (origin, callback) {
+            // Allow requests with no origin (like mobile apps, curl, or same-origin)
+            if (!origin || origin === 'null') {
+                return callback(null, true);
+            }
             
-            if (allowedOrigins.some(allowed => {
-                if (typeof allowed === 'string') return allowed === origin;
-                return allowed.test(origin);
-            })) {
+            // Check if the requesting origin is in the allowed list
+            if (allowedOrigins.includes(origin)) {
                 callback(null, true);
             } else {
-                console.log('CORS blocked origin:', origin);
-                callback(new Error('Not allowed by CORS'));
+                console.log('CORS blocked origin:', origin);
+                console.log('Allowed origins:', allowedOrigins);
+                callback(new Error('Not allowed by CORS'));
+            }
+        },
+        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+        credentials: true,
+        optionsSuccessStatus: 200
+    };
+    
+    app.use(cors(corsOptions));
+    app.use(express.json());
+
+    // ---------------- Session & Passport Middleware ----------------
+    // This is mandatory when using 'credentials: true'
+    app.use(session({
+        secret: process.env.SESSION_SECRET || 'a-fallback-secret-for-development-only', // Define SESSION_SECRET in your .env
+        resave: false,
+        saveUninitialized: false,
+        cookie: { 
+            // Must be true in production if client and server are different domains
+            secure: process.env.NODE_ENV === 'production', 
+            httpOnly: true,
+            sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax', // Correct setting for cross-site cookies
+            maxAge: 1000 * 60 * 60 * 24 // 1 day
+        } 
+    }));
+    app.use(passport.initialize());
+    app.use(passport.session());
+    // -----------------------------------------------------------------
+
+
+    // Debug middleware to log all requests
+    app.use((req, res, next) => {
+        if (req.url.startsWith('/api/')) {
+            console.log('🔍 API Request:', req.method, req.url);
+            console.log('🔍 Origin:', req.headers.origin);
+            console.log('🔍 ==========================================');
+        }
+        next();
+    });
+
+    
+    const modelDir = path.join(__dirname, 'src', 'services', 'mobilenet_model');
+    app.use('/model', express.static(modelDir));
+    console.log(`Model server: Static models available at http://localhost:${PORT}/model`);
+
+
+    app.use('/api/auth', authRoutes);
+    app.use('/api/complaints', complaintRoutes);
+    app.use('/api/admin', adminRoutes);
+
+    
+    app.get('/', (req, res) => 
+        res.send("ResolveHub is running...")
+    );
+
+    // ---------------- Global Error Handler (New Addition) ----------------
+    // This catches all uncaught exceptions in async routes and middleware
+    app.use((err, req, res, next) => {
+        // Log the error stack to the server console for debugging
+        console.error('🚨 GLOBAL SERVER ERROR HANDLER 🚨');
+        console.error(err.stack);
+
+        // Respond to the client with a generic 500 error
+        const status = err.status || 500;
+        const message = err.message || 'Internal Server Error';
+
+        res.status(status).json({
+            error: {
+                message: process.env.NODE_ENV === 'production' ? 'Internal Server Error' : message,
+                status: status,
+                // Only send stack trace in development mode for security
+                stack: process.env.NODE_ENV !== 'production' ? err.stack : undefined 
             }
-        },
-        methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-        credentials: true,
-        optionsSuccessStatus: 200
-    };
-    app.use(cors(corsOptions));
-    app.use(express.json());
-
-    
-    const modelDir = path.join(__dirname, 'src', 'services', 'mobilenet_model');
-    app.use('/model', express.static(modelDir));
-    console.log(`Model server: Static models available at http://localhost:${PORT}/model`);
-
-
-    app.use('/api/auth', authRoutes);
-    app.use('/api/complaints', complaintRoutes);
-    app.use('/api/admin', adminRoutes);
-
-    
-    app.get('/', (req, res) => 
-        res.send("ResolveHub is running...")
-    );
-
-
-    
-    await connectDB();
-
- 
-    app.listen(PORT, async () => {
-        console.log(`\nServer started on ${PORT}.`);
-        
-       // Load ML Models (Fetch from the server that is now listening) 
-        try {
-            await loadModels(); 
-            console.log('✅ ML Triage Models initialized successfully.');
-        } catch (error) {
-            console.error('FATAL ERROR: ML Model loading failed. Triage Service is unavailable.', error);
-        }
+        });
     });
-    
-    
+    // ---------------------------------------------------------------------
+
+
+    await connectDB();
+
+ 
+    app.listen(PORT, async () => {
+        console.log(`\nServer started on ${PORT}.`);
+        
+       // Load ML Models (Fetch from the server that is now listening) 
+        try {
+            await loadModels(); 
+            console.log('✅ ML Triage Models initialized successfully.');
+        } catch (error) {
+            console.error('FATAL ERROR: ML Model loading failed. Triage Service is unavailable.', error);
+        }
+    });
+    
+    
 };
 
 initializeApp();

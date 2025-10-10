@@ -44,7 +44,22 @@ class ApiService {
 
   // Auth endpoints
   login(credentials) {
-    return this.api.post("/api/auth/login", credentials);
+    console.log('🔐 Login attempt with credentials:', credentials);
+    console.log('🔐 API Base URL:', this.api.defaults.baseURL);
+    console.log('🔐 Request headers:', this.api.defaults.headers);
+    
+    return this.api.post("/api/auth/login", credentials)
+      .then(response => {
+        console.log('✅ Login successful:', response.data);
+        return response;
+      })
+      .catch(error => {
+        console.error('❌ Login failed:', error);
+        console.error('❌ Error response:', error.response);
+        console.error('❌ Error message:', error.message);
+        console.error('❌ Error config:', error.config);
+        throw error;
+      });
   }
 
   register(userData) {
@@ -94,7 +109,54 @@ class ApiService {
 
   // Admin endpoints
   createStaffUser(userData) {
-    return this.api.post("/api/admin/users", userData);
+    console.log('🚀 Creating staff user with data:', userData);
+    console.log('🚀 API Base URL:', this.api.defaults.baseURL);
+    console.log('🚀 Request headers:', this.api.defaults.headers);
+    console.log('🚀 Token from localStorage:', localStorage.getItem('token'));
+    
+    // Make the request and handle errors properly
+    return this.api.post("/api/admin/users", userData)
+      .then(response => {
+        console.log('✅ Staff creation successful:', response.data);
+        return response;
+      })
+      .catch(error => {
+        console.error('❌ Staff creation failed:', error);
+        console.error('❌ Error response:', error.response);
+        console.error('❌ Error message:', error.message);
+        console.error('❌ Error config:', error.config);
+        throw error;
+      });
+  }
+
+  getVerificationCode() {
+    console.log('🔑 Generating verification code');
+    return this.api.post("/api/admin/verification-code")
+      .then(response => {
+        console.log('✅ Verification code generated:', response.data);
+        return response;
+      })
+      .catch(error => {
+        console.error('❌ Verification code generation failed:', error);
+        throw error;
+      });
+  }
+
+  // Gamification endpoints
+  getLeaderboard(limit = 10) {
+    const url = `/api/admin/leaderboard?limit=${limit}`;
+    console.log('🔗 Leaderboard URL:', url);
+    console.log('🌐 Base URL:', this.api.defaults.baseURL);
+    console.log('🎯 Full URL:', this.api.defaults.baseURL + url);
+    return this.api.get(url);
+  }
+
+  getGamificationStats() {
+    const url = "/api/admin/gamification-stats";
+    console.log('🔗 Stats URL:', url);
+    console.log('🌐 Base URL:', this.api.defaults.baseURL);
+    console.log('🎯 Full URL:', this.api.defaults.baseURL + url);
+    return this.api.get(url);
   }
 
   // Statistics endpoints

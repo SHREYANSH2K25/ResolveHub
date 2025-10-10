@@ -60,8 +60,14 @@ const RegisterPage = () => {
     if (!validateForm()) return;
 
     setIsLoading(true);
-    const { confirmPassword, ...registrationData } = formData;
+    const { confirmPassword, registrationKey, ...registrationData } = formData;
     registrationData.role = role;
+    
+    // Map registrationKey to verificationcode for backend compatibility
+    if (role === 'staff' && registrationKey) {
+      registrationData.verificationcode = registrationKey;
+    }
+    
     const success = await register(registrationData);
     if (success) navigate('/dashboard');
     setIsLoading(false);

@@ -249,26 +249,6 @@ const HomePage = () => {
                 </div>
               </div>
               
-              <motion.div
-                initial={{ y: 10, opacity: 0 }}
-                animate={{ y: 0, opacity: 1 }}
-                transition={{ delay: 0.25 }}
-                className="absolute -bottom-8 left-6 w-44 bg-gray-900/90 backdrop-blur-sm rounded-xl p-3 shadow-lg border border-gray-700/50"
-              >
-                <div className="flex items-center gap-3 ">
-                  <div className="bg-indigo-600/20 rounded-lg p-2">
-                    <MapPin className="w-5 h-5 text-indigo-400" />
-                  </div>
-                  <div>
-                    <div className="text-sm font-medium text-gray-200">
-                      Nearby Reports
-                    </div>
-                    <div className="text-xs text-gray-400">
-                      View heatmap & cluster data
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
             </motion.div>
           </div>
 

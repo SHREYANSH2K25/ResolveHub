@@ -127,6 +127,7 @@ router.post('/', auth, upload, async(req, res) => {
 
         const newComplaint = new Complaint ({
             submittedBy : req.user.id,
+            
             title,
             description,
             category : category,

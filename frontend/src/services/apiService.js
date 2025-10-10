@@ -96,6 +96,19 @@ class ApiService {
   createStaffUser(userData) {
     return this.api.post("/api/admin/users", userData);
   }
+
+  // Statistics endpoints
+  getStatistics(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.api.get(`/api/admin/statistics${queryString ? `?${queryString}` : ''}`);
+  }
+
+  exportStatistics(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.api.get(`/api/admin/statistics/export${queryString ? `?${queryString}` : ''}`, {
+      responseType: 'blob'
+    });
+  }
 }
 
 export const apiService = new ApiService();

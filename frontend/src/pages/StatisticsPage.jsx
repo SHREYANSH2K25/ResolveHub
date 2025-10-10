@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { apiService } from '../services/apiService';
+import { useAuth } from '../contexts/AuthContext';
+import toast from 'react-hot-toast';
 import PageHeader from '../components/PageHeader';
-import Card from '../components/Card';
 import { 
   BarChart3,
   TrendingUp,
@@ -9,316 +11,496 @@ import {
   Clock,
   CheckCircle,
   AlertTriangle,
-  Calendar,
-  MapPin,
-  Filter,
   Download,
-  RefreshCw
+  RefreshCw,
+  Activity,
+  Target,
+  Filter
 } from 'lucide-react';
+
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  PointElement,
+  LineElement,
+} from 'chart.js';
+import { Doughnut, Line } from 'react-chartjs-2';
+import { format, parseISO } from 'date-fns';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+  PointElement,
+  LineElement
+);
 
 const StatisticsPage = () => {
   const [timeRange, setTimeRange] = useState('30days');
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [customDateRange, setCustomDateRange] = useState({ start: '', end: '' });
+  const [showCustomRange, setShowCustomRange] = useState(false);
+  const [statistics, setStatistics] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
 
-  // Dummy data for charts and statistics
-  const stats = {
-    overview: {
-      totalComplaints: 1247,
-      resolvedComplaints: 892,
-      avgResolutionTime: '4.2 days',
-      satisfactionRate: '87%',
-      activeStaff: 24,
-      pendingAssignments: 45
-    },
-    trends: {
-      complaints: [120, 135, 148, 132, 156, 171, 165, 189, 201, 187, 195, 210],
-      resolutions: [98, 112, 125, 118, 134, 142, 138, 156, 167, 159, 172, 185]
-    },
-    categories: [
-      { name: 'Road Maintenance', count: 324, percentage: 26, trend: '+12%' },
-      { name: 'Water Supply', count: 298, percentage: 24, trend: '+8%' },
-      { name: 'Waste Management', count: 187, percentage: 15, trend: '-3%' },
-      { name: 'Street Lighting', count: 156, percentage: 12, trend: '+15%' },
-      { name: 'Parks & Recreation', count: 134, percentage: 11, trend: '+5%' },
-      { name: 'Other', count: 148, percentage: 12, trend: '+2%' }
-    ],
-    locations: [
-      { area: 'Downtown', complaints: 234, resolved: 187, percentage: 80 },
-      { area: 'North District', complaints: 198, resolved: 171, percentage: 86 },
-      { area: 'East Side', complaints: 187, resolved: 145, percentage: 78 },
-      { area: 'West End', complaints: 156, resolved: 134, percentage: 86 },
-      { area: 'South Valley', complaints: 143, resolved: 121, percentage: 85 }
-    ]
+  // Fetch statistics data
+  const fetchStatistics = async (params = {}) => {
+    try {
+      setLoading(true);
+      console.log('Fetching statistics with params:', { timeRange, ...params });
+      const response = await apiService.getStatistics({
+        timeRange,
+        ...params
+      });
+      console.log('Statistics response:', response.data);
+      setStatistics(response.data);
+    } catch (error) {
+      console.error('Error fetching statistics:', error);
+      toast.error('Failed to load statistics');
+    } finally {
+      setLoading(false);
+    }
   };
 
+  useEffect(() => {
+    if (showCustomRange && customDateRange.start && customDateRange.end) {
+      fetchStatistics({
+        startDate: customDateRange.start,
+        endDate: customDateRange.end
+      });
+    } else if (!showCustomRange) {
+      fetchStatistics({ timeRange });
+    }
+  }, [timeRange, customDateRange, showCustomRange]);
+
+  // Export functionality
+  const handleExport = async () => {
+    try {
+      setExporting(true);
+      const params = {
+        format: 'csv',
+        timeRange: showCustomRange ? undefined : timeRange,
+        ...(showCustomRange && customDateRange.start && customDateRange.end ? {
+          startDate: customDateRange.start,
+          endDate: customDateRange.end
+        } : {})
+      };
+
+      const response = await apiService.exportStatistics(params);
+      
+      // Create download link
+      const blob = new Blob([response.data], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      const dateStr = showCustomRange ? 
+        `${customDateRange.start}_to_${customDateRange.end}` : 
+        timeRange;
+      link.download = `complaints_statistics_${dateStr}.csv`;
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      toast.success('Statistics exported successfully!');
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export statistics');
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // Helper components
   const StatCard = ({ title, value, subtitle, icon: Icon, trend, color = 'blue' }) => {
     const colorClasses = {
-      blue: 'bg-blue-50 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400',
-      green: 'bg-green-50 text-green-600 dark:bg-green-900/20 dark:text-green-400',
-      yellow: 'bg-yellow-50 text-yellow-600 dark:bg-yellow-900/20 dark:text-yellow-400',
-      red: 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400',
-      purple: 'bg-purple-50 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400'
+      blue: 'from-blue-500 to-blue-600',
+      green: 'from-green-500 to-green-600',
+      yellow: 'from-yellow-500 to-yellow-600',
+      red: 'from-red-500 to-red-600',
+      purple: 'from-purple-500 to-purple-600',
+      indigo: 'from-indigo-500 to-indigo-600'
     };
 
     return (
-      <Card className="hover:shadow-lg transition-shadow">
-        <div className="flex items-start justify-between">
-          <div>
-            <div className="text-2xl font-bold text-gray-900 dark:text-white mb-1">
-              {value}
+      <div className="relative group">
+        <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-300"></div>
+        <div className="relative bg-gray-800/40 backdrop-blur-xl rounded-2xl p-6 border border-gray-700/40">
+          <div className="flex items-center justify-between">
+            <div className="flex-1">
+              <p className="text-sm font-medium text-gray-400 mb-1">{title}</p>
+              <p className="text-2xl font-bold text-white">{value}</p>
+              {subtitle && <p className="text-xs text-gray-500 mt-1">{subtitle}</p>}
+              {trend && (
+                <div className={`flex items-center mt-2 text-sm ${
+                  trend.startsWith('+') ? 'text-green-400' : trend.startsWith('-') ? 'text-red-400' : 'text-gray-400'
+                }`}>
+                  {trend.startsWith('+') ? (
+                    <TrendingUp className="w-4 h-4 mr-1" />
+                  ) : trend.startsWith('-') ? (
+                    <TrendingDown className="w-4 h-4 mr-1" />
+                  ) : null}
+                  <span>{trend}</span>
+                </div>
+              )}
             </div>
-            <div className="text-sm font-medium text-gray-600 dark:text-gray-300 mb-2">
-              {title}
+            <div className={`p-3 rounded-xl bg-gradient-to-r ${colorClasses[color]} shadow-lg`}>
+              <Icon className="w-6 h-6 text-white" />
             </div>
-            {subtitle && (
-              <div className="text-xs text-gray-500 dark:text-gray-400">
-                {subtitle}
-              </div>
-            )}
-            {trend && (
-              <div className={`text-xs font-medium mt-2 flex items-center gap-1 ${
-                trend.startsWith('+') ? 'text-green-600' : 'text-red-600'
-              }`}>
-                {trend.startsWith('+') ? 
-                  <TrendingUp className="w-3 h-3" /> : 
-                  <TrendingDown className="w-3 h-3" />
-                }
-                {trend}
-              </div>
-            )}
-          </div>
-          <div className={`inline-flex items-center justify-center w-12 h-12 rounded-full ${colorClasses[color]}`}>
-            <Icon className="w-6 h-6" />
           </div>
         </div>
-      </Card>
+      </div>
     );
   };
 
-  const ChartCard = ({ title, children }) => (
-    <Card className="h-80">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{title}</h3>
-        <button className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
-          <RefreshCw className="w-4 h-4" />
-        </button>
+  const ChartCard = ({ title, children, className = "" }) => (
+    <div className={`relative group ${className}`}>
+      <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-2xl blur opacity-20 group-hover:opacity-30 transition duration-300"></div>
+      <div className="relative bg-gray-800/40 backdrop-blur-xl rounded-2xl p-6 border border-gray-700/40 h-full">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-lg font-semibold text-white">{title}</h3>
+          <button 
+            onClick={() => fetchStatistics()}
+            className="text-gray-400 hover:text-gray-300 transition-colors"
+          >
+            <RefreshCw className="w-4 h-4" />
+          </button>
+        </div>
+        <div className="flex-1">
+          {children}
+        </div>
       </div>
-      <div className="flex-1 flex items-center justify-center text-gray-500 dark:text-gray-400">
-        {children}
-      </div>
-    </Card>
+    </div>
   );
 
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-municipal-900 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <PageHeader
-          title="Statistics & Analytics"
-          subtitle="Monitor performance and track complaint resolution trends"
-        >
-          <div className="flex gap-3">
-            <select 
-              value={timeRange}
-              onChange={(e) => setTimeRange(e.target.value)}
-              className="px-4 py-2 border border-gray-300 dark:border-municipal-600 rounded-lg bg-white dark:bg-municipal-700 text-gray-900 dark:text-white text-sm"
-            >
-              <option value="7days">Last 7 days</option>
-              <option value="30days">Last 30 days</option>
-              <option value="90days">Last 3 months</option>
-              <option value="1year">Last year</option>
-            </select>
-            <button className="btn-secondary text-sm">
-              <Download className="w-4 h-4 mr-2" />
-              Export
-            </button>
-          </div>
-        </PageHeader>
+  // Chart configurations
+  const chartOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        labels: {
+          color: '#9CA3AF'
+        }
+      }
+    },
+    scales: {
+      x: {
+        ticks: { color: '#9CA3AF' },
+        grid: { color: '#374151' }
+      },
+      y: {
+        ticks: { color: '#9CA3AF' },
+        grid: { color: '#374151' }
+      }
+    }
+  };
 
-        {/* Overview Stats */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
-          <StatCard
-            title="Total Complaints"
-            value={stats.overview.totalComplaints.toLocaleString()}
-            icon={BarChart3}
-            trend="+12%"
-            color="blue"
-          />
-          <StatCard
-            title="Resolved"
-            value={stats.overview.resolvedComplaints.toLocaleString()}
-            subtitle={`${Math.round((stats.overview.resolvedComplaints / stats.overview.totalComplaints) * 100)}% resolution rate`}
-            icon={CheckCircle}
-            trend="+8%"
-            color="green"
-          />
-          <StatCard
-            title="Avg Resolution"
-            value={stats.overview.avgResolutionTime}
-            subtitle="Days to resolve"
-            icon={Clock}
-            trend="-15%"
-            color="yellow"
-          />
-          <StatCard
-            title="Satisfaction"
-            value={stats.overview.satisfactionRate}
-            subtitle="User rating"
-            icon={TrendingUp}
-            trend="+5%"
-            color="purple"
-          />
-          <StatCard
-            title="Active Staff"
-            value={stats.overview.activeStaff}
-            subtitle="Currently online"
-            icon={Users}
-            color="blue"
-          />
-          <StatCard
-            title="Pending"
-            value={stats.overview.pendingAssignments}
-            subtitle="Awaiting assignment"
-            icon={AlertTriangle}
-            trend="+3%"
-            color="red"
-          />
+  const doughnutOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'bottom',
+        labels: {
+          color: '#9CA3AF',
+          padding: 20
+        }
+      }
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-purple-500 mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading statistics...</p>
         </div>
-
-        {/* Charts Row */}
-        <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <ChartCard title="Complaints vs Resolutions Trend">
-            <div className="w-full h-full bg-gradient-to-t from-primary-50 to-transparent dark:from-primary-900/20 rounded-lg flex items-end justify-center">
-              <div className="text-center">
-                <BarChart3 className="w-16 h-16 text-primary-400 mx-auto mb-2" />
-                <div className="text-sm text-gray-600 dark:text-gray-400">
-                  Chart visualization would appear here
-                </div>
-              </div>
-            </div>
-          </ChartCard>
-
-          <ChartCard title="Resolution Time Distribution">
-            <div className="w-full h-full bg-gradient-to-t from-green-50 to-transparent dark:from-green-900/20 rounded-lg flex items-end justify-center">
-              <div className="text-center">
-                <Clock className="w-16 h-16 text-green-400 mx-auto mb-2" />
-                <div className="text-sm text-gray-600 dark:text-gray-400">
-                  Time distribution chart would appear here
-                </div>
-              </div>
-            </div>
-          </ChartCard>
-        </div>
-
-        {/* Category Breakdown */}
-        <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <Card>
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Complaints by Category
-              </h3>
-              <Filter className="w-5 h-5 text-gray-400" />
-            </div>
-            <div className="space-y-4">
-              {stats.categories.map((category, index) => (
-                <div key={index} className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">
-                        {category.name}
-                      </span>
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-600 dark:text-gray-400">
-                          {category.count}
-                        </span>
-                        <span className={`text-xs font-medium ${
-                          category.trend.startsWith('+') ? 'text-green-600' : 'text-red-600'
-                        }`}>
-                          {category.trend}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-municipal-700 rounded-full h-2">
-                      <div
-                        className="bg-primary-600 h-2 rounded-full transition-all duration-500"
-                        style={{ width: `${category.percentage}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          {/* Location Performance */}
-          <Card>
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Performance by Location
-              </h3>
-              <MapPin className="w-5 h-5 text-gray-400" />
-            </div>
-            <div className="space-y-4">
-              {stats.locations.map((location, index) => (
-                <div key={index} className="border-b border-gray-200 dark:border-municipal-700 pb-4 last:border-0">
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-gray-900 dark:text-white">
-                      {location.area}
-                    </span>
-                    <span className={`text-sm font-medium px-2 py-1 rounded-full ${
-                      location.percentage >= 85 
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
-                        : location.percentage >= 70
-                        ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400'
-                        : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'
-                    }`}>
-                      {location.percentage}%
-                    </span>
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">
-                    {location.resolved} of {location.complaints} complaints resolved
-                  </div>
-                  <div className="w-full bg-gray-200 dark:bg-municipal-700 rounded-full h-2 mt-2">
-                    <div
-                      className={`h-2 rounded-full transition-all duration-500 ${
-                        location.percentage >= 85 ? 'bg-green-500' :
-                        location.percentage >= 70 ? 'bg-yellow-500' : 'bg-red-500'
-                      }`}
-                      style={{ width: `${location.percentage}%` }}
-                    ></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        </div>
-
-        {/* Recent Activity Summary */}
-        <Card className="mt-8">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-6">
-            Recent Activity Summary
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="text-center">
-              <div className="text-3xl font-bold text-primary-600 mb-2">24</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                New complaints today
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-green-600 mb-2">18</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                Resolved today
-              </div>
-            </div>
-            <div className="text-center">
-              <div className="text-3xl font-bold text-yellow-600 mb-2">3.8h</div>
-              <div className="text-sm text-gray-600 dark:text-gray-400">
-                Avg response time today
-              </div>
-            </div>
-          </div>
-        </Card>
       </div>
+    );
+  }
+
+  if (!statistics) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <div className="text-center text-gray-400">
+          <AlertTriangle className="w-16 h-16 mx-auto mb-4" />
+          <p>Failed to load statistics data</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-black relative overflow-hidden">
+      {/* Background Effects */}
+      <div className="absolute inset-0">
+        <div className="absolute top-10 -left-10 w-72 h-72 bg-gradient-to-tr from-purple-700 via-pink-600 to-blue-600 rounded-full opacity-10 filter blur-3xl animate-blob"></div>
+        <div className="absolute top-1/3 -right-20 w-80 h-80 bg-gradient-to-br from-pink-700 via-purple-600 to-blue-500 rounded-full opacity-10 filter blur-3xl animate-blob animation-delay-3000"></div>
+        <div className="absolute -bottom-20 left-1/3 w-72 h-72 bg-gradient-to-bl from-blue-700 via-purple-500 to-pink-500 rounded-full opacity-10 filter blur-3xl animate-blob animation-delay-5000"></div>
+      </div>
+
+      <div className="relative z-10 py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <PageHeader
+            title="Statistics & Analytics"
+            subtitle={`Monitor performance and track complaint resolution trends${statistics.city ? ` - ${statistics.city}` : ''}`}
+          >
+            <div className="flex flex-wrap gap-3 items-center">
+              {/* Time Range Selector */}
+              <div className="flex gap-2">
+                <select 
+                  value={showCustomRange ? 'custom' : timeRange}
+                  onChange={(e) => {
+                    if (e.target.value === 'custom') {
+                      setShowCustomRange(true);
+                    } else {
+                      setShowCustomRange(false);
+                      setTimeRange(e.target.value);
+                    }
+                  }}
+                  className="px-4 py-2 bg-gray-800/40 border border-gray-600/40 rounded-xl text-white text-sm backdrop-blur-sm focus:outline-none focus:border-purple-500/50"
+                >
+                  <option value="7days">Last 7 days</option>
+                  <option value="30days">Last 30 days</option>
+                  <option value="90days">Last 3 months</option>
+                  <option value="1year">Last year</option>
+                  <option value="custom">Custom Range</option>
+                </select>
+                
+                {/* Custom Date Range */}
+                {showCustomRange && (
+                  <div className="flex gap-2">
+                    <input
+                      type="date"
+                      value={customDateRange.start}
+                      onChange={(e) => setCustomDateRange(prev => ({ ...prev, start: e.target.value }))}
+                      className="px-3 py-2 bg-gray-800/40 border border-gray-600/40 rounded-xl text-white text-sm backdrop-blur-sm focus:outline-none focus:border-purple-500/50"
+                    />
+                    <input
+                      type="date"
+                      value={customDateRange.end}
+                      onChange={(e) => setCustomDateRange(prev => ({ ...prev, end: e.target.value }))}
+                      className="px-3 py-2 bg-gray-800/40 border border-gray-600/40 rounded-xl text-white text-sm backdrop-blur-sm focus:outline-none focus:border-purple-500/50"
+                    />
+                  </div>
+                )}
+              </div>
+              
+              {/* Export Button */}
+              <button 
+                onClick={handleExport}
+                disabled={exporting}
+                className="relative group"
+              >
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-green-600 to-green-400 rounded-xl blur opacity-40 group-hover:opacity-60 transition duration-300"></div>
+                <div className="relative flex items-center gap-2 px-4 py-2 bg-gray-800/40 rounded-xl text-white text-sm backdrop-blur-sm border border-gray-600/40 hover:bg-gray-700/40 transition-colors">
+                  {exporting ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <Download className="w-4 h-4" />
+                  )}
+                  <span>{exporting ? 'Exporting...' : 'Export CSV'}</span>
+                </div>
+              </button>
+              
+              {/* Refresh Button */}
+              <button 
+                onClick={() => fetchStatistics()}
+                className="relative group"
+              >
+                <div className="absolute -inset-0.5 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl blur opacity-40 group-hover:opacity-60 transition duration-300"></div>
+                <div className="relative flex items-center gap-2 px-4 py-2 bg-gray-800/40 rounded-xl text-white text-sm backdrop-blur-sm border border-gray-600/40 hover:bg-gray-700/40 transition-colors">
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Refresh</span>
+                </div>
+              </button>
+            </div>
+          </PageHeader>
+
+          {/* Overview Stats */}
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
+            <StatCard
+              title="Total Complaints"
+              value={statistics.overview.totalComplaints.toLocaleString()}
+              icon={BarChart3}
+              color="blue"
+            />
+            <StatCard
+              title="Resolved"
+              value={statistics.overview.resolvedComplaints.toLocaleString()}
+              subtitle={`${statistics.overview.resolutionRate}% resolution rate`}
+              icon={CheckCircle}
+              color="green"
+            />
+            <StatCard
+              title="Pending"
+              value={statistics.overview.pendingComplaints.toLocaleString()}
+              subtitle="Awaiting resolution"
+              icon={Clock}
+              color="yellow"
+            />
+            <StatCard
+              title="In Progress"
+              value={statistics.overview.inProgressComplaints.toLocaleString()}
+              subtitle="Being handled"
+              icon={Activity}
+              color="purple"
+            />
+            <StatCard
+              title="Avg Resolution"
+              value={`${statistics.overview.avgResolutionTime} days`}
+              subtitle="Average time"
+              icon={Target}
+              color="indigo"
+            />
+            <StatCard
+              title="Active Staff"
+              value={statistics.overview.activeStaff}
+              subtitle="Available"
+              icon={Users}
+              color="green"
+            />
+          </div>
+
+          {/* Charts Row */}
+          <div className="mt-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
+            {/* Trend Chart */}
+            <ChartCard title="Daily Complaints Trend" className="h-96">
+              {statistics.trends && statistics.trends.length > 0 ? (
+                <Line 
+                  data={{
+                    labels: statistics.trends.map(item => format(parseISO(item._id), 'MMM dd')),
+                    datasets: [
+                      {
+                        label: 'New Complaints',
+                        data: statistics.trends.map(item => item.complaints),
+                        borderColor: '#8B5CF6',
+                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                        tension: 0.4
+                      },
+                      {
+                        label: 'Resolved',
+                        data: statistics.trends.map(item => item.resolved),
+                        borderColor: '#10B981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                        tension: 0.4
+                      }
+                    ]
+                  }}
+                  options={chartOptions}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-400">
+                  <div className="text-center">
+                    <BarChart3 className="w-16 h-16 mx-auto mb-2" />
+                    <p>No trend data available</p>
+                  </div>
+                </div>
+              )}
+            </ChartCard>
+
+            {/* Category Breakdown */}
+            <ChartCard title="Complaints by Category" className="h-96">
+              {statistics.categories && statistics.categories.length > 0 ? (
+                <Doughnut
+                  data={{
+                    labels: statistics.categories.map(cat => cat._id || 'Unknown'),
+                    datasets: [{
+                      data: statistics.categories.map(cat => cat.count),
+                      backgroundColor: [
+                        '#8B5CF6', '#10B981', '#F59E0B', '#EF4444', 
+                        '#3B82F6', '#8B5A2B', '#EC4899', '#6B7280'
+                      ],
+                      borderWidth: 0
+                    }]
+                  }}
+                  options={doughnutOptions}
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full text-gray-400">
+                  <div className="text-center">
+                    <Filter className="w-16 h-16 mx-auto mb-2" />
+                    <p>No category data available</p>
+                  </div>
+                </div>
+              )}
+            </ChartCard>
+          </div>
+
+          {/* Staff Performance (if available) */}
+          {statistics.staffPerformance && statistics.staffPerformance.length > 0 && (
+            <ChartCard title="Staff Performance" className="mt-8">
+              <div className="space-y-4">
+                {statistics.staffPerformance.map((staff, index) => (
+                  <div key={index} className="flex items-center justify-between p-4 bg-gray-900/20 rounded-xl">
+                    <div>
+                      <p className="text-white font-medium">{staff.name}</p>
+                      <p className="text-gray-400 text-sm">{staff.department}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-white">{staff.resolved}/{staff.assigned}</p>
+                      <p className={`text-sm font-medium ${
+                        staff.percentage >= 80 ? 'text-green-400' : 
+                        staff.percentage >= 60 ? 'text-yellow-400' : 'text-red-400'
+                      }`}>
+                        {staff.percentage}%
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </ChartCard>
+          )}
+
+          {/* Status Breakdown */}
+          <ChartCard title="Status Summary" className="mt-8">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <div className="text-center p-4 bg-blue-500/10 rounded-xl border border-blue-500/20">
+                <div className="text-2xl font-bold text-blue-400">{statistics.overview.totalComplaints}</div>
+                <div className="text-sm text-gray-400">Total</div>
+              </div>
+              <div className="text-center p-4 bg-green-500/10 rounded-xl border border-green-500/20">
+                <div className="text-2xl font-bold text-green-400">{statistics.overview.resolvedComplaints}</div>
+                <div className="text-sm text-gray-400">Resolved</div>
+              </div>
+              <div className="text-center p-4 bg-yellow-500/10 rounded-xl border border-yellow-500/20">
+                <div className="text-2xl font-bold text-yellow-400">{statistics.overview.pendingComplaints}</div>
+                <div className="text-sm text-gray-400">Pending</div>
+              </div>
+              <div className="text-center p-4 bg-purple-500/10 rounded-xl border border-purple-500/20">
+                <div className="text-2xl font-bold text-purple-400">{statistics.overview.inProgressComplaints}</div>
+                <div className="text-sm text-gray-400">In Progress</div>
+              </div>
+            </div>
+          </ChartCard>
+        </div>
+      </div>
+
+      {/* CSS Animations */}
+      <style>{`
+        @keyframes blob { 
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(30px, -50px) scale(1.1); }
+          66% { transform: translate(-20px, 20px) scale(0.9); }
+        }
+        .animate-blob { animation: blob 7s infinite; }
+        .animation-delay-3000 { animation-delay: 3s; }
+        .animation-delay-5000 { animation-delay: 5s; }
+      `}</style>
     </div>
   );
 };

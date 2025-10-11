@@ -340,20 +340,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 - **Discussions**: [GitHub Discussions](https://github.com/SHREYANSH2K25/ResolveHub/discussions)
 - **Email**: shreyanshjain354@gmail.com
 
-## 🔄 Changelog
-
-### v1.0.0 (October 2025)
-- ✅ Initial release
-- ✅ Complete authentication system
-- ✅ AI-powered complaint triage
-- ✅ SLA tracking and escalation
-- ✅ Geospatial heatmap visualization
-- ✅ Gamification and leaderboards
-- ✅ Responsive UI with dark mode
-- ✅ Production deployment ready
-
----
-
-**Made with ❤️ for better municipal governance**
-
 *ResolveHub - Transforming citizen complaints into actionable solutions*

@@ -156,6 +156,15 @@ const initializeApp = async () => {
         } catch (error) {
             console.error('FATAL ERROR: ML Model loading failed. Triage Service is unavailable.', error);
         }
+
+        // Initialize Scheduler Service
+        try {
+            const schedulerService = (await import('./src/services/schedulerService.js')).default;
+            schedulerService.init();
+            console.log('✅ Scheduler Service initialized successfully.');
+        } catch (error) {
+            console.error('ERROR: Scheduler initialization failed:', error);
+        }
     });    
 };
 

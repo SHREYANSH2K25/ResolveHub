@@ -9,15 +9,34 @@ const libraries = ['visualization'];
 const HeatmapView = ({ 
   height = "600px",
   center = { lat: 28.6139, lng: 77.2090 },
-  zoom = 11
+  zoom = 11,
+  timeRange = 'all',
+  category = 'all'
 }) => {
+  const googleMapsApiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY;
+  
   const { isLoaded, loadError } = useJsApiLoader({
-    googleMapsApiKey: import.meta.env.VITE_GOOGLE_MAPS_API_KEY,
+    googleMapsApiKey: googleMapsApiKey,
     libraries
   });
 
+  // Check if API key is available
+  if (!googleMapsApiKey) {
+    return (
+      <div className="flex items-center justify-center h-96 bg-gray-100 dark:bg-gray-800 rounded-lg">
+        <div className="text-center">
+          <div className="text-yellow-500 mb-2">⚠️</div>
+          <p className="text-gray-600 dark:text-gray-400">Google Maps API key not configured</p>
+          <p className="text-sm text-gray-500 mt-1">Please add VITE_GOOGLE_MAPS_API_KEY to environment variables</p>
+        </div>
+      </div>
+    );
+  }
+
   const [heatmapData, setHeatmapData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [retryCount, setRetryCount] = useState(0);
 
   const mapContainerStyle = useMemo(() => ({
     width: '100%',
@@ -38,27 +57,96 @@ const HeatmapView = ({
     ]
   }), []);
 
-  const fetchHeatmapData = async () => {
+  const fetchHeatmapData = async (isRetry = false) => {
     try {
       setLoading(true);
+      setError(null);
+      
+      // Ensure Google Maps API is fully loaded
+      if (!window.google || !window.google.maps || !window.google.maps.LatLng) {
+        const errorMsg = 'Google Maps API not fully loaded';
+        console.error(errorMsg);
+        setError(errorMsg);
+        
+        if (retryCount < 3 && !isRetry) {
+          console.log(`Retrying heatmap load... (attempt ${retryCount + 1})`);
+          setRetryCount(prev => prev + 1);
+          setTimeout(() => fetchHeatmapData(true), 1000);
+          return;
+        }
+        
+        toast.error('Google Maps is still loading, please try again');
+        return;
+      }
+      
+      console.log('Fetching heatmap data with filters:', { timeRange, category });
       const response = await apiService.getHeatmapData();
       const data = response.data;
-      const points = data.map(c => new window.google.maps.LatLng(c.location.coordinates[1], c.location.coordinates[0]));
+      
+      console.log('Heatmap API response:', data);
+      
+      if (!data || !Array.isArray(data)) {
+        console.warn('No heatmap data received or invalid format');
+        setHeatmapData([]);
+        setError('No complaint data available for heatmap');
+        return;
+      }
+      
+      const validData = data.filter(c => c.location && c.location.coordinates && c.location.coordinates.length >= 2);
+      console.log(`Processing ${validData.length} valid locations out of ${data.length} total`);
+      
+      const points = validData.map(c => new window.google.maps.LatLng(c.location.coordinates[1], c.location.coordinates[0]));
+      
       setHeatmapData(points);
+      setRetryCount(0); // Reset retry count on success
+      console.log(`Heatmap loaded successfully with ${points.length} data points`);
     } catch (err) {
-      console.error(err);
-      toast.error('Failed to load heatmap data');
+      console.error('Error fetching heatmap data:', err);
+      setError(err.response?.data?.msg || err.message || 'Failed to load heatmap data');
+      
+      if (err.response?.status === 401) {
+        toast.error('Authentication required. Please log in again.');
+      } else {
+        toast.error('Failed to load heatmap data: ' + (err.response?.data?.msg || err.message));
+      }
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (isLoaded) fetchHeatmapData();
-  }, [isLoaded]);
+    if (isLoaded) {
+      // Add a small delay to ensure Google Maps API is fully initialized
+      const timer = setTimeout(() => {
+        fetchHeatmapData();
+      }, 500);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isLoaded, timeRange, category]); // Re-fetch when filters change
 
-  if (loadError) return <p>Error loading Google Maps</p>;
-  if (!isLoaded) return <LoadingSpinner size="lg" />;
+  if (loadError) {
+    return (
+      <div className="flex items-center justify-center h-96 bg-gray-100 dark:bg-gray-800 rounded-lg">
+        <div className="text-center">
+          <div className="text-red-500 mb-2">⚠️</div>
+          <p className="text-gray-600 dark:text-gray-400">Error loading Google Maps</p>
+          <p className="text-sm text-gray-500 mt-1">Please check your internet connection and API key</p>
+        </div>
+      </div>
+    );
+  }
+  
+  if (!isLoaded) {
+    return (
+      <div className="flex items-center justify-center h-96 bg-gray-100 dark:bg-gray-800 rounded-lg">
+        <div className="text-center">
+          <LoadingSpinner size="lg" />
+          <p className="mt-4 text-gray-600 dark:text-gray-400">Loading Google Maps...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-4">
@@ -66,9 +154,16 @@ const HeatmapView = ({
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Complaint Heatmap</h3>
-          <p className="text-sm text-gray-600 dark:text-gray-400">Showing distribution of active complaints across the city</p>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            Showing distribution of active complaints across the city
+            {error && <span className="text-red-500 ml-2">• {error}</span>}
+          </p>
         </div>
-        <button onClick={fetchHeatmapData} disabled={loading} className="btn-secondary flex items-center space-x-2">
+        <button 
+          onClick={() => fetchHeatmapData()} 
+          disabled={loading} 
+          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center space-x-2"
+        >
           {loading ? <LoadingSpinner size="sm" /> : <span>Refresh</span>}
         </button>
       </div>

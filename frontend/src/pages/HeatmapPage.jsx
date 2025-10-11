@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import PageHeader from '../components/PageHeader';
 import Card from '../components/Card';
 import HeatmapView from '../components/GoogleMaps/HeatmapView';
@@ -162,8 +162,10 @@ const HeatmapPage = () => {
 
               <div className="h-[600px] bg-gray-800/30">
                 <HeatmapView 
+                  key={`${selectedTimeRange}-${selectedCategory}`}
                   timeRange={selectedTimeRange}
                   category={selectedCategory}
+                  height="600px"
                 />
               </div>
             </div>

@@ -179,6 +179,36 @@ class ApiService {
       responseType: 'blob'
     });
   }
+
+  // SLA endpoints
+  getSLAStats() {
+    return this.api.get('/api/complaints/sla/stats');
+  }
+
+  getOverdueComplaints() {
+    return this.api.get('/api/complaints/sla/overdue');
+  }
+
+  processSLAUpdates() {
+    return this.api.post('/api/complaints/sla/process');
+  }
+
+  // Generic methods for direct API calls (backward compatibility)
+  get(url) {
+    return this.api.get(url);
+  }
+
+  post(url, data) {
+    return this.api.post(url, data);
+  }
+
+  put(url, data) {
+    return this.api.put(url, data);
+  }
+
+  delete(url) {
+    return this.api.delete(url);
+  }
 }
 
 export const apiService = new ApiService();

@@ -5,6 +5,7 @@ import LoadingSpinner from '../components/LoadingSpinner';
 import Leaderboard from '../components/Leaderboard';
 import GamificationStats from '../components/GamificationStats';
 import GamificationDashboard from '../components/GamificationDashboard';
+import SLADashboard from '../components/SLADashboard';
 import { 
   UserPlus, 
   Users, 
@@ -243,6 +244,17 @@ const AdminDashboard = () => {
             >
               <Trophy className="w-5 h-5" />
               Gamification
+            </button>
+            <button
+              onClick={() => setActiveTab('sla')}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 px-4 rounded-lg font-medium transition-all duration-300 ${
+                activeTab === 'sla'
+                  ? 'bg-purple-600 text-white shadow-lg'
+                  : 'text-gray-400 hover:text-white hover:bg-gray-800/50'
+              }`}
+            >
+              <Clock className="w-5 h-5" />
+              SLA Tracking
             </button>
           </div>
 
@@ -499,6 +511,17 @@ const AdminDashboard = () => {
           {/* Gamification Tab Content */}
           {activeTab === 'gamification' && (
             <GamificationDashboard userRole="admin" />
+          )}
+
+          {/* SLA Tab Content */}
+          {activeTab === 'sla' && (
+            <div className="bg-gray-900/20 backdrop-blur-lg rounded-xl p-6 border border-gray-700/30">
+              <div className="mb-4">
+                <h2 className="text-xl font-bold text-white mb-2">SLA Tracking & Escalation System</h2>
+                <p className="text-gray-300">Monitor complaint resolution deadlines and automatic escalations</p>
+              </div>
+              <SLADashboard />
+            </div>
           )}
 
         </div>

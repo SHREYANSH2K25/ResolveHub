@@ -4,6 +4,7 @@ import { apiService } from '../services/apiService';
 import Card from '../components/Card';
 import StatusBadge from '../components/StatusBadge';
 import LoadingSpinner from '../components/LoadingSpinner';
+import SLAIndicator from '../components/SLAIndicator';
 import {
   Users,
   Calendar,
@@ -459,7 +460,7 @@ const StaffDashboard = () => {
                         <p className="text-gray-300 mb-3 line-clamp-2">
                           {c.description}
                         </p>
-                        <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400">
+                        <div className="flex flex-wrap items-center gap-4 text-sm text-gray-400 mb-3">
                           <span className="flex items-center space-x-1">
                             <Users className="w-4 h-4" />
                             <span>{c.submittedBy.name}</span>
@@ -477,6 +478,10 @@ const StaffDashboard = () => {
                               </span>
                             </span>
                           )}
+                        </div>
+                        {/* SLA Indicator */}
+                        <div className="mb-3">
+                          <SLAIndicator complaint={c} size="small" />
                         </div>
                       </div>
                       <div className="flex items-center space-x-2 ml-4">

@@ -10,6 +10,7 @@ import { User } from "../models/User.js"
 import authorize from '../middlewares/rbac.js'
 import { notifyCitizenOfStatusChange } from "../services/notificationService.js"
 import { updateLeaderboardPoints } from "../services/gamificationService.js"
+import { initializeSLA, updateSLAStatus, processSLAUpdates } from "../services/slaService.js"
 const router = express.Router();
 
 // Add logging middleware for all complaint routes
@@ -195,6 +196,15 @@ router.post('/', auth, upload, async(req, res) => {
 
         const complaint = await newComplaint.save();
 
+        // Initialize SLA for the new complaint
+        try {
+            await initializeSLA(complaint._id);
+            console.log(`✅ SLA initialized for complaint ${complaint._id}`);
+        } catch (slaError) {
+            console.error('⚠️ Failed to initialize SLA (non-critical):', slaError);
+            // Continue with complaint creation even if SLA init fails
+        }
+
         // Send notification about assignment
         if (assignmentMessage) {
             notifyCitizenOfStatusChange(complaint, assignmentMessage);
@@ -211,9 +221,34 @@ router.post('/', auth, upload, async(req, res) => {
         })
     }
     catch(err){
-        console.error('Submission error:', err);
-        console.error('Stack trace:', err.stack);
-        res.status(500).json({msg : err.message || 'Server error during upload'});
+        console.error('💥 COMPLAINT SUBMISSION ERROR:', err);
+        console.error('📍 Error Name:', err.name);
+        console.error('📋 Error Message:', err.message);
+        console.error('🔍 Stack Trace:', err.stack);
+        
+        // Enhanced error reporting
+        let errorMessage = 'Server error during complaint submission';
+        let statusCode = 500;
+        
+        if (err.name === 'ValidationError') {
+            errorMessage = `Validation failed: ${Object.values(err.errors).map(e => e.message).join(', ')}`;
+            statusCode = 400;
+        } else if (err.name === 'CastError') {
+            errorMessage = 'Invalid data format provided';
+            statusCode = 400;
+        } else if (err.message.includes('geocoding') || err.message.includes('address')) {
+            errorMessage = 'Failed to process the provided address';
+            statusCode = 400;
+        } else if (err.message.includes('triage') || err.message.includes('ML')) {
+            errorMessage = 'Failed to categorize complaint automatically';
+            statusCode = 500;
+        }
+        
+        res.status(statusCode).json({
+            msg: errorMessage,
+            error: process.env.NODE_ENV === 'development' ? err.message : undefined,
+            timestamp: new Date().toISOString()
+        });
     }
 })
 
@@ -522,6 +557,15 @@ router.put('/:id/status', auth, authorize(['staff', 'admin']), async(req, res) =
             {new : true, runValidators : true}
         );
 
+        // Update SLA status after status change
+        try {
+            await updateSLAStatus(updatedComplaint._id);
+            console.log(`[SLA] Updated SLA status for complaint ${updatedComplaint._id}`);
+        } catch (slaError) {
+            console.error(`[SLA] Error updating SLA status for complaint ${updatedComplaint._id}:`, slaError);
+            // Don't fail the status update if SLA update fails
+        }
+
         // add bonus based on resolutiontime
         if(status === 'RESOLVED'){
             const staffId = updatedComplaint.assignedTo;
@@ -683,4 +727,142 @@ router.get('/heatmap', auth, authorize(['staff', 'admin']), async(req, res) => {
         res.status(500).send('Server error');
     }
 });
+// SLA Management Endpoints
+
+// Get overdue complaints
+router.get('/sla/overdue', auth, authorize(['staff', 'admin']), async (req, res) => {
+    try {
+        const currentUser = await User.findById(req.user.id);
+        
+        let filter = { 
+            'sla.isOverdue': true,
+            status: { $in: ['OPEN', 'IN_PROGRESS'] }
+        };
+
+        // Apply role-based filtering
+        if (currentUser.role === 'staff') {
+            filter.$or = [
+                { assignedUsers: req.user.id },
+                { assignedTo: req.user.id },
+                { 
+                    $and: [
+                        { city: currentUser.city },
+                        { department: currentUser.department }
+                    ]
+                }
+            ];
+        } else if (currentUser.role === 'admin' && currentUser.city !== 'Global') {
+            filter.city = currentUser.city;
+        }
+
+        const overdueComplaints = await Complaint.find(filter)
+            .populate('submittedBy', 'name email')
+            .populate('assignedTo', 'name department')
+            .populate('escalation.escalatedTo', 'name role')
+            .sort({ 'sla.breachedAt': 1 }); // Oldest breaches first
+
+        res.json({
+            count: overdueComplaints.length,
+            complaints: overdueComplaints
+        });
+    } catch (error) {
+        console.error('Error fetching overdue complaints:', error);
+        res.status(500).json({ msg: 'Failed to fetch overdue complaints' });
+    }
+});
+
+// Process SLA updates (manual trigger)
+router.post('/sla/process', auth, authorize(['admin']), async (req, res) => {
+    try {
+        const result = await processSLAUpdates();
+        res.json({
+            msg: 'SLA processing completed',
+            ...result
+        });
+    } catch (error) {
+        console.error('Error processing SLA updates:', error);
+        res.status(500).json({ msg: 'Failed to process SLA updates' });
+    }
+});
+
+// Get SLA statistics
+router.get('/sla/stats', auth, authorize(['staff', 'admin']), async (req, res) => {
+    try {
+        const currentUser = await User.findById(req.user.id);
+        
+        let baseFilter = {};
+        
+        // Apply role-based filtering
+        if (currentUser.role === 'staff') {
+            baseFilter = {
+                $or: [
+                    { assignedUsers: req.user.id },
+                    { assignedTo: req.user.id },
+                    { 
+                        $and: [
+                            { city: currentUser.city },
+                            { department: currentUser.department }
+                        ]
+                    }
+                ]
+            };
+        } else if (currentUser.role === 'admin' && currentUser.city !== 'Global') {
+            baseFilter.city = currentUser.city;
+        }
+
+        // Get various SLA statistics
+        const [
+            totalActive,
+            onTime,
+            overdue,
+            escalatedLevel1,
+            escalatedLevel2,
+            escalatedLevel3
+        ] = await Promise.all([
+            Complaint.countDocuments({ 
+                ...baseFilter, 
+                status: { $in: ['OPEN', 'IN_PROGRESS'] } 
+            }),
+            Complaint.countDocuments({ 
+                ...baseFilter, 
+                status: { $in: ['OPEN', 'IN_PROGRESS'] },
+                'sla.isOverdue': false
+            }),
+            Complaint.countDocuments({ 
+                ...baseFilter, 
+                'sla.isOverdue': true,
+                status: { $in: ['OPEN', 'IN_PROGRESS'] }
+            }),
+            Complaint.countDocuments({ 
+                ...baseFilter, 
+                'escalation.level': 1
+            }),
+            Complaint.countDocuments({ 
+                ...baseFilter, 
+                'escalation.level': 2
+            }),
+            Complaint.countDocuments({ 
+                ...baseFilter, 
+                'escalation.level': 3
+            })
+        ]);
+
+        res.json({
+            totalActive,
+            onTime,
+            overdue,
+            escalations: {
+                level1: escalatedLevel1,
+                level2: escalatedLevel2,
+                level3: escalatedLevel3,
+                total: escalatedLevel1 + escalatedLevel2 + escalatedLevel3
+            },
+            slaCompliance: totalActive > 0 ? Math.round((onTime / totalActive) * 100) : 100
+        });
+    } catch (error) {
+        console.error('Error fetching SLA stats:', error);
+        res.status(500).json({ msg: 'Failed to fetch SLA statistics' });
+    }
+});
+
 export default router;

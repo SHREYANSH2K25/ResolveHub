@@ -1,0 +1,7 @@
+# ResolveHub Backend Deployment
+
+# Railway deployment configuration
+web: node server.js
+
+# Health check endpoint
+GET /health -> Returns server status

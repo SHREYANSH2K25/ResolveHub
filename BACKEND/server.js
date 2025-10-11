@@ -42,14 +42,16 @@ const initializeApp = async () => {
     // Add all development origins and include an environment variable 
     // for your deployed "universal site" (e.g., Vercel, Netlify URL).
     const allowedOrigins = [
-        'http://localhost:5174', // Primary frontend port
-        'http://127.0.0.1:5174', // Primary frontend port
+        'http://localhost:5174', // Primary frontend port (development)
+        'http://127.0.0.1:5174', // Primary frontend port (development)
         'http://localhost:5173', 
         'http://localhost:5175',
         'http://127.0.0.1:5173',
         'http://127.0.0.1:5175',
-        'http://127.0.0.1:5176', // Origin from the error message is confirmed here
-        process.env.FRONTEND_URL, // IMPORTANT: Set this in your .env for the deployed site
+        'http://127.0.0.1:5176',
+        process.env.FRONTEND_URL, // Production frontend URL (Vercel)
+        'https://resolvehub-frontend.vercel.app', // Default Vercel domain
+        /\.vercel\.app$/, // Allow all Vercel domains
     ].filter(Boolean); // Filters out undefined/null if FRONTEND_URL is not set
 
     const corsOptions = {
@@ -111,15 +113,23 @@ const initializeApp = async () => {
     console.log(`Model server: Static models available at http://localhost:${PORT}/model`);
 
 
+    // Health check route
+    app.get('/health', (req, res) => {
+        res.status(200).json({
+            status: 'OK',
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime(),
+            environment: process.env.NODE_ENV || 'development'
+        });
+    });
+
     app.use('/api/auth', authRoutes);
     app.use('/api/complaints', complaintRoutes);
     app.use('/api/admin', adminRoutes);
-    app.use('/api/debug', debugRoutes);    
-    app.get('/', (req, res) => 
-        res.send("ResolveHub is running...")
-    );
-
-    // ---------------- Global Error Handler (New Addition) ----------------
+    app.use('/api/debug', debugRoutes);    
+    app.get('/', (req, res) => 
+        res.send("ResolveHub Backend API is running...")
+    );    // ---------------- Global Error Handler (New Addition) ----------------
     // This catches all uncaught exceptions in async routes and middleware
     app.use((err, req, res, next) => {
         // Log the error stack to the server console for debugging

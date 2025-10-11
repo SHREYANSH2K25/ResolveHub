@@ -38,11 +38,17 @@ const UserSchema = new mongoose.Schema({
     },
     resolutionStreak: {
         type : Number,
-        default : 0
+        default : 0 ,
+        required : function() {
+            return this.role === 'staff'
+        }
     },
     topFixerBadge : {
         type : String,
-        default : null
+        default : null ,
+        required : function() {
+            return this.role === 'staff'
+        }
     },
     department : {
         type : String,

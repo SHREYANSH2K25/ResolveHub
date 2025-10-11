@@ -108,7 +108,7 @@ function App() {
               <Route
                 path="/statistics"
                 element={
-                  <ProtectedRoute roles={['staff', 'admin']}>
+                  <ProtectedRoute roles={['admin']}>
                     <StatisticsPage />
                   </ProtectedRoute>
                 }

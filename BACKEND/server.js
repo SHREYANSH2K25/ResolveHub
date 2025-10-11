@@ -12,6 +12,7 @@ import { dirname } from 'path';
 import authRoutes from "./src/routes/auth.js";
 import complaintRoutes from "./src/routes/complaints.js";
 import adminRoutes from "./src/routes/admin.js";
+import debugRoutes from "./src/routes/debug.js";
 
 // ML model service
 import { loadModels } from "./src/services/triageService.mjs";
@@ -110,11 +111,10 @@ const initializeApp = async () => {
     console.log(`Model server: Static models available at http://localhost:${PORT}/model`);
 
 
-    app.use('/api/auth', authRoutes);
-    app.use('/api/complaints', complaintRoutes);
-    app.use('/api/admin', adminRoutes);
-
-    
+    app.use('/api/auth', authRoutes);
+    app.use('/api/complaints', complaintRoutes);
+    app.use('/api/admin', adminRoutes);
+    app.use('/api/debug', debugRoutes);    
     app.get('/', (req, res) => 
         res.send("ResolveHub is running...")
     );
@@ -145,19 +145,18 @@ const initializeApp = async () => {
     await connectDB();
 
  
-    app.listen(PORT, async () => {
-        console.log(`\nServer started on ${PORT}.`);
-        
-       // Load ML Models (Fetch from the server that is now listening) 
-        try {
-            await loadModels(); 
-            console.log('✅ ML Triage Models initialized successfully.');
-        } catch (error) {
-            console.error('FATAL ERROR: ML Model loading failed. Triage Service is unavailable.', error);
-        }
-    });
-    
-    
+    app.listen(PORT, '0.0.0.0', async () => {
+        console.log(`\nServer started on 0.0.0.0:${PORT}`);
+        console.log(`Access server at: http://localhost:${PORT}`);
+        
+       // Load ML Models (Fetch from the server that is now listening) 
+        try {
+            await loadModels(); 
+            console.log('✅ ML Triage Models initialized successfully.');
+        } catch (error) {
+            console.error('FATAL ERROR: ML Model loading failed. Triage Service is unavailable.', error);
+        }
+    });    
 };
 
 initializeApp();

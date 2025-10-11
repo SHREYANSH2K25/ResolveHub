@@ -1,5 +1,5 @@
 import { User } from "../models/User.js";
-import { Complaint } from "../models/Complaint.js"
+import { Complaint } from "../models/Complaint.js";
 
 const POINT_VALUES = {
     BASE_RESOLUTION: 10,
@@ -35,11 +35,22 @@ export const updateLeaderboardPoints = async(staffId, complaint, trigger) => {
     }
 
     if(pointsAwarded > 0) {
-        // update points in User docs
+        // Get current user to calculate new badge
+        const user = await User.findById(staffId);
+        if (!user) return { totalPointsAwarded: 0 };
+
+        const newPoints = user.points + pointsAwarded;
+        const newStreak = trigger === 'RESOLUTION' ? user.resolutionStreak + 1 : user.resolutionStreak;
+        const newBadge = calculateUserBadge(newPoints);
+
+        // update points, streak, and badge in User docs
         await User.findByIdAndUpdate(staffId, {
             $inc : {
                 points: pointsAwarded,
                 resolutionStreak: trigger === 'RESOLUTION' ? 1 : 0
+            },
+            $set: {
+                topFixerBadge: newBadge.name
             }
         })
 
@@ -50,7 +61,11 @@ export const updateLeaderboardPoints = async(staffId, complaint, trigger) => {
             }
         })
 
-        console.log(`[Gamification] Total ${pointsAwarded} points awarded to ${staffId}`);
+        console.log(`[Gamification] ✅ Awards Summary for ${staffId}:`);
+        console.log(`  - Points Awarded: ${pointsAwarded}`);
+        console.log(`  - New Badge: ${newBadge.name}`);
+        console.log(`  - Current Streak: ${newStreak}`);
+        console.log(`  - Total Points: ${newPoints}`);
     }
 
     return { totalPointsAwarded : pointsAwarded};
@@ -86,23 +101,61 @@ export const calculateUserBadge = (points) => {
 // Get leaderboard data
 export const getLeaderboard = async (city, limit = 10) => {
     try {
+        console.log(`[Gamification] Fetching leaderboard for city: ${city}, limit: ${limit}`);
         const topStaff = await User.find({ 
             role: 'staff',
             city: city,
-            points: { $gt: 0 } 
+            points: { $gte: 0 } // Include staff with 0 points too
         })
-        .select('name department points resolutionStreak')
-        .sort({ points: -1 })
-        .limit(limit);
+        .select('name fullname email department points resolutionStreak topFixerBadge createdAt');
 
-        return topStaff.map(staff => ({
-            id: staff._id,
-            name: staff.name,
-            department: staff.department,
-            points: staff.points,
-            resolutionStreak: staff.resolutionStreak,
-            badge: calculateUserBadge(staff.points)
-        }));
+        // Get complaint resolution stats and sort properly
+        const staffWithStats = await Promise.all(
+            topStaff.map(async (staff) => {
+                const complaintsResolved = await Complaint.countDocuments({
+                    assignedTo: staff._id,
+                    status: 'RESOLVED'
+                });
+                return { ...staff.toObject(), complaintsResolved };
+            })
+        );
+
+        // Sort by: 1. Points (desc), 2. Complaints resolved (desc), 3. Resolution streak (desc)
+        const sortedStaff = staffWithStats.sort((a, b) => {
+            if (b.points !== a.points) return b.points - a.points;
+            if (b.complaintsResolved !== a.complaintsResolved) return b.complaintsResolved - a.complaintsResolved;
+            if (b.resolutionStreak !== a.resolutionStreak) return b.resolutionStreak - a.resolutionStreak;
+            return new Date(a.createdAt) - new Date(b.createdAt); // Earlier created = higher rank if tied
+        }).slice(0, limit);
+
+        // Transform the sorted staff data
+        const leaderboardWithStats = sortedStaff.map((staff) => {
+            const currentBadge = calculateUserBadge(staff.points);
+            
+            return {
+                _id: staff._id,
+                fullname: staff.fullname || staff.name,
+                name: staff.name,
+                email: staff.email,
+                department: staff.department,
+                city: city,
+                totalPoints: staff.points,
+                points: staff.points,
+                currentStreak: staff.resolutionStreak,
+                resolutionStreak: staff.resolutionStreak,
+                complaintsResolved: staff.complaintsResolved,
+                topFixerBadge: staff.topFixerBadge || currentBadge.name,
+                badge: currentBadge,
+                badges: staff.topFixerBadge ? [{
+                    name: staff.topFixerBadge,
+                    icon: currentBadge.icon,
+                    color: currentBadge.color
+                }] : []
+            };
+        });
+
+        console.log(`[Gamification] Successfully fetched ${leaderboardWithStats.length} staff members for leaderboard`);
+        return leaderboardWithStats;
     } catch (error) {
         console.error('[Gamification] Error fetching leaderboard:', error);
         throw error;
@@ -113,7 +166,8 @@ export const getLeaderboard = async (city, limit = 10) => {
 export const getGamificationStats = async (city) => {
     try {
         // Get all staff in the city
-        const allStaff = await User.find({ role: 'staff', city: city });
+        const allStaff = await User.find({ role: 'staff', city: city })
+            .select('name fullname points resolutionStreak topFixerBadge department');
         
         // Calculate total points awarded
         const totalPoints = allStaff.reduce((sum, staff) => sum + staff.points, 0);
@@ -124,7 +178,7 @@ export const getGamificationStats = async (city) => {
             city: city, 
             points: { $gt: 0 } 
         })
-        .select('name points')
+        .select('name fullname points department topFixerBadge resolutionStreak')
         .sort({ points: -1 });
 
         // Calculate badge distribution
@@ -134,20 +188,60 @@ export const getGamificationStats = async (city) => {
             badgeDistribution[badge.name] = (badgeDistribution[badge.name] || 0) + 1;
         });
 
-        // Get average points
+        // Get average points and streaks
         const averagePoints = allStaff.length > 0 ? Math.round(totalPoints / allStaff.length) : 0;
+        const totalActiveStreaks = allStaff.filter(staff => staff.resolutionStreak > 0).length;
+        const averageStreak = allStaff.length > 0 ? 
+            Math.round(allStaff.reduce((sum, staff) => sum + staff.resolutionStreak, 0) / allStaff.length) : 0;
+
+        // Get total resolved complaints
+        const totalResolvedComplaints = await Complaint.countDocuments({
+            status: 'RESOLVED',
+            assignedTo: { $in: allStaff.map(staff => staff._id) }
+        });
+
+        // Get department-wise performance
+        const departmentStats = {};
+        for (const staff of allStaff) {
+            if (!departmentStats[staff.department]) {
+                departmentStats[staff.department] = {
+                    totalStaff: 0,
+                    totalPoints: 0,
+                    totalStreaks: 0,
+                    resolvedComplaints: 0
+                };
+            }
+            departmentStats[staff.department].totalStaff += 1;
+            departmentStats[staff.department].totalPoints += staff.points;
+            departmentStats[staff.department].totalStreaks += staff.resolutionStreak;
+
+            const resolvedCount = await Complaint.countDocuments({
+                assignedTo: staff._id,
+                status: 'RESOLVED'
+            });
+            departmentStats[staff.department].resolvedComplaints += resolvedCount;
+        }
 
         return {
             totalStaff: allStaff.length,
             totalPoints,
+            totalBadges: allStaff.filter(staff => staff.topFixerBadge && staff.topFixerBadge !== 'Rookie').length,
             averagePoints,
+            averageStreak,
+            totalActiveStreaks,
+            totalResolvedComplaints,
+            avgResolutionTime: 24, // This could be calculated from actual data
             topPerformer: topPerformer ? {
-                name: topPerformer.name,
+                name: topPerformer.fullname || topPerformer.name,
                 points: topPerformer.points,
+                department: topPerformer.department,
+                streak: topPerformer.resolutionStreak,
                 badge: calculateUserBadge(topPerformer.points)
             } : null,
             badgeDistribution,
-            availableBadges: Object.values(BADGES)
+            departmentStats,
+            availableBadges: Object.values(BADGES),
+            recentAchievements: [] // This could be populated with recent badge achievements
         };
     } catch (error) {
         console.error('[Gamification] Error fetching stats:', error);

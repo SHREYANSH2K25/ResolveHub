@@ -159,6 +159,14 @@ class ApiService {
     return this.api.get(url);
   }
 
+  getUserGamificationStats(userId) {
+    const url = `/api/admin/user-gamification-stats/${userId}`;
+    console.log('👤 User Stats URL:', url);
+    console.log('🌐 Base URL:', this.api.defaults.baseURL);
+    console.log('🎯 Full URL:', this.api.defaults.baseURL + url);
+    return this.api.get(url);
+  }
+
   // Statistics endpoints
   getStatistics(params = {}) {
     const queryString = new URLSearchParams(params).toString();

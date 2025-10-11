@@ -37,7 +37,18 @@ const StaffDashboard = () => {
       console.log('Fetching staff complaints...');
       const response = await apiService.getStaffComplaints();
       console.log('Staff complaints response:', response.data);
-      setComplaints(response.data || []);
+      
+      // Handle new response format with complaints and resolvedCount
+      if (response.data && typeof response.data === 'object' && response.data.complaints) {
+        setComplaints(response.data.complaints || []);
+        // Store resolved count for display
+        if (response.data.resolvedCount !== undefined) {
+          localStorage.setItem('staffResolvedCount', response.data.resolvedCount.toString());
+        }
+      } else {
+        // Fallback for old format (array of complaints)
+        setComplaints(response.data || []);
+      }
     } catch (error) {
       console.error('Error fetching complaints:', error);
       toast.error(`Failed to load complaints: ${error.response?.data?.message || error.message}`);
@@ -84,14 +95,17 @@ const StaffDashboard = () => {
       minute: '2-digit',
     });
 
+  // Get total resolved count from localStorage (set from API response)
+  const totalResolvedCount = parseInt(localStorage.getItem('staffResolvedCount') || '0', 10);
+  
   const stats = {
     total: complaints.length,
     open: complaints.filter((c) => c.status.toUpperCase() === 'OPEN').length,
     inProgress: complaints.filter(
-      (c) => c.status.toUpperCase() === 'IN PROGRESS'
+      (c) => c.status.toUpperCase() === 'IN_PROGRESS'
     ).length,
-    resolved: complaints.filter((c) => c.status.toUpperCase() === 'RESOLVED')
-      .length,
+    resolved: totalResolvedCount, // Use total resolved count from backend
+    resolvedInCurrentView: complaints.filter((c) => c.status.toUpperCase() === 'RESOLVED').length
   };
 
   const ComplaintModal = () => {
@@ -217,7 +231,7 @@ const StaffDashboard = () => {
                     {selectedComplaint.status === 'OPEN' && (
                       <button
                         onClick={() =>
-                          updateStatus(selectedComplaint._id, 'IN PROGRESS')
+                          updateStatus(selectedComplaint._id, 'IN_PROGRESS')
                         }
                         disabled={updating === selectedComplaint._id}
                         className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg backdrop-blur-sm transition-all duration-300 flex items-center space-x-2"
@@ -231,7 +245,7 @@ const StaffDashboard = () => {
                       </button>
                     )}
                     {(selectedComplaint.status === 'OPEN' ||
-                      selectedComplaint.status === 'IN PROGRESS') && (
+                      selectedComplaint.status === 'IN_PROGRESS') && (
                       <button
                         onClick={() =>
                           updateStatus(selectedComplaint._id, 'RESOLVED')
@@ -357,7 +371,12 @@ const StaffDashboard = () => {
                 <div className="flex items-center justify-between">
                   <div>
                     <div className="text-3xl font-bold text-white mb-2">{stats.resolved}</div>
-                    <div className="text-sm font-medium text-gray-300">Resolved</div>
+                    <div className="text-sm font-medium text-gray-300">Total Resolved by Me</div>
+                    {stats.resolvedInCurrentView > 0 && (
+                      <div className="text-xs text-gray-400 mt-1">
+                        {stats.resolvedInCurrentView} in current view
+                      </div>
+                    )}
                   </div>
                   <div className="w-12 h-12 bg-green-500/20 rounded-full flex items-center justify-center">
                     <CheckCircle className="w-6 h-6 text-green-400" />
@@ -381,7 +400,7 @@ const StaffDashboard = () => {
                   >
                     <option value="all">All Status</option>
                     <option value="open">Open</option>
-                    <option value="in progress">In Progress</option>
+                    <option value="in_progress">In Progress</option>
                     <option value="resolved">Resolved</option>
                   </select>
                 </div>
@@ -470,7 +489,7 @@ const StaffDashboard = () => {
                         </button>
                         {c.status === 'OPEN' && (
                           <button
-                            onClick={() => updateStatus(c._id, 'IN PROGRESS')}
+                            onClick={() => updateStatus(c._id, 'IN_PROGRESS')}
                             disabled={updating === c._id}
                             className="px-4 py-2 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white rounded-lg backdrop-blur-sm transition-all duration-300 flex items-center space-x-2"
                           >
@@ -482,7 +501,7 @@ const StaffDashboard = () => {
                             <span>Start</span>
                           </button>
                         )}
-                        {(c.status === 'OPEN' || c.status === 'IN PROGRESS') && (
+                        {(c.status === 'OPEN' || c.status === 'IN_PROGRESS') && (
                           <button
                             onClick={() => updateStatus(c._id, 'RESOLVED')}
                             disabled={updating === c._id}

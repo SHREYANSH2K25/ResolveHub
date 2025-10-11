@@ -4,6 +4,7 @@ const StatusBadge = ({ status }) => {
       case 'OPEN':
         return 'status-badge status-open';
       case 'IN PROGRESS':
+      case 'IN_PROGRESS':
         return 'status-badge status-progress';
       case 'RESOLVED':
         return 'status-badge status-resolved';
@@ -12,9 +13,22 @@ const StatusBadge = ({ status }) => {
     }
   };
 
+  const formatStatusText = (status) => {
+    switch (status?.toUpperCase()) {
+      case 'IN_PROGRESS':
+        return 'In Progress';
+      case 'OPEN':
+        return 'Open';
+      case 'RESOLVED':
+        return 'Resolved';
+      default:
+        return status || 'Unknown';
+    }
+  };
+
   return (
     <span className={getStatusStyles(status)}>
-      {status || 'Unknown'}
+      {formatStatusText(status)}
     </span>
   );
 };

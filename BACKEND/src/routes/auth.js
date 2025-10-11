@@ -13,6 +13,40 @@ import {VerificationCode} from "../models/Verificationmodel.js"
 
 const router = express.Router();
 
+// Debug endpoint to check user details
+router.get('/debug/user/:id', async (req, res) => {
+    try {
+        const user = await User.findById(req.params.id);
+        if (!user) {
+            return res.status(404).json({ error: 'User not found' });
+        }
+        
+        console.log(`[Debug User] User details:`, {
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            city: user.city,
+            department: user.department
+        });
+        
+        res.json({
+            id: user._id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            city: user.city,
+            department: user.department,
+            points: user.points || 0,
+            resolutionStreak: user.resolutionStreak || 0,
+            topFixerBadge: user.topFixerBadge || 'Rookie'
+        });
+    } catch (err) {
+        console.error('Debug user fetch error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 const getGlobalAdmin = async () => await User.findOne({ role: 'admin', city: 'Global' });
 
 const getCitiesWithAdmin = async() => {

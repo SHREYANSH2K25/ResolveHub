@@ -74,9 +74,9 @@ const Navbar = () => {
                 <>
                   <NavLink to="/staff">Staff Panel</NavLink>
                   <NavLink to="/heatmap">Heatmap</NavLink>
-                  <NavLink to="/statistics">Statistics</NavLink>
                 </>
               )}
+              {isAdmin && <NavLink to="/statistics">Statistics</NavLink>}
               {isAdmin && <NavLink to="/admin">Admin Panel</NavLink>}
             </>
           )}

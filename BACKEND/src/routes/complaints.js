@@ -1,4 +1,5 @@
 import express from "express"
+import mongoose from "mongoose"
 import auth from "../middlewares/auth.js"
 import upload from "../middlewares/fileUpload.js"
 import cloudinary from "../config/cloudinaryConfig.js"
@@ -10,6 +11,12 @@ import authorize from '../middlewares/rbac.js'
 import { notifyCitizenOfStatusChange } from "../services/notificationService.js"
 import { updateLeaderboardPoints } from "../services/gamificationService.js"
 const router = express.Router();
+
+// Add logging middleware for all complaint routes
+router.use((req, res, next) => {
+    console.log(`[Complaints Router] ${req.method} ${req.path} - Params:`, req.params, 'Body:', req.body);
+    next();
+});
 
 // helper to convert bufer(binary data) to string for cloudianry to accept
 const bufferToDataUri = (file) =>{
@@ -74,13 +81,20 @@ router.post('/', auth, upload, async(req, res) => {
         console.log('Coordinates:', finalCoordinates);
     
         const departmentMap = {
+            // Capital case (from AI)
             Sanitation: "Sanitation",
             Plumbing: "Plumbing",
-            Structural: "Structural",
+            Structural: "Structural", 
             Electrical: "Electrical",
+            // Lowercase (from user input/frontend)
+            sanitation: "Sanitation",
+            plumbing: "Plumbing",
+            structural: "Structural",
+            electrical: "Electrical"
         }
         
         const matchedDepartment = departmentMap[category] || null;
+        console.log(`[Complaint Assignment] Category: ${category} -> Department: ${matchedDepartment}`);
 
         // WHEN NORMAL COMPLAINT THEN ISSUE IS ALREADY RESOLVED
         if(category === "Normal"){
@@ -157,6 +171,14 @@ router.post('/', auth, upload, async(req, res) => {
 
         assignedToId = primaryAssignee?._id;
         // Create new complaint with enhanced assignment data
+        console.log(`[Complaint Creation] Creating complaint with:`, {
+            category,
+            department: matchedDepartment,
+            city: detectedCity,
+            assignedTo: assignedToId,
+            assignedUsers
+        });
+
         const newComplaint = new Complaint ({
             submittedBy : req.user.id,
             title,
@@ -216,6 +238,124 @@ router.get('/history', auth, authorize('citizen'), async(req, res) => {
     }
 })
 
+// Debug test submission (no auth)
+router.post('/debug/test-submit', async (req, res) => {
+    try {
+        const { title = "Test Structural Complaint", category = "structural" } = req.body;
+        
+        const departmentMap = {
+            // Capital case (from AI)
+            Sanitation: "Sanitation",
+            Plumbing: "Plumbing",
+            Structural: "Structural", 
+            Electrical: "Electrical",
+            // Lowercase (from user input/frontend)
+            sanitation: "Sanitation",
+            plumbing: "Plumbing",
+            structural: "Structural",
+            electrical: "Electrical"
+        };
+        
+        const matchedDepartment = departmentMap[category] || null;
+        
+        console.log(`[Test] Category: ${category} -> Department: ${matchedDepartment}`);
+        
+        res.json({
+            category,
+            matchedDepartment,
+            success: matchedDepartment ? true : false
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Debug route to fix gamification
+router.get('/debug/fix-gamification', async (req, res) => {
+    try {
+        console.log('🎯 [Debug] Starting gamification fix for all staff...');
+        
+        // Find all staff members
+        const staffMembers = await User.find({ role: 'staff' });
+        console.log(`Found ${staffMembers.length} staff members`);
+
+        let updatedCount = 0;
+        const results = [];
+        
+        for (const staff of staffMembers) {
+            console.log(`👤 Processing: ${staff.name} (${staff.city}, ${staff.department})`);
+            
+            // Count resolved complaints for this staff member
+            const resolvedCount = await Complaint.countDocuments({
+                status: 'RESOLVED',
+                $or: [
+                    { assignedTo: staff._id },
+                    { assignedUsers: staff._id }
+                ]
+            });
+
+            // Calculate points based on resolved complaints
+            const basePoints = resolvedCount * 10; // 10 points per resolved complaint
+            
+            // Determine badge based on points
+            let badge = 'Rookie';
+            if (basePoints >= 1000) badge = 'Municipal Legend';
+            else if (basePoints >= 500) badge = 'City Champion';
+            else if (basePoints >= 250) badge = 'Expert Fixer';
+            else if (basePoints >= 100) badge = 'Problem Solver';
+
+            // Update user with gamification data
+            await User.findByIdAndUpdate(staff._id, {
+                $set: {
+                    points: basePoints,
+                    resolutionStreak: resolvedCount,
+                    topFixerBadge: badge
+                }
+            });
+
+            const result = {
+                name: staff.name,
+                city: staff.city,
+                department: staff.department,
+                resolvedComplaints: resolvedCount,
+                points: basePoints,
+                badge: badge
+            };
+            
+            results.push(result);
+            console.log(`✅ ${staff.name}: ${resolvedCount} resolved → ${basePoints} points → ${badge}`);
+            updatedCount++;
+        }
+
+        console.log(`✅ Fixed gamification for ${updatedCount} staff members`);
+        
+        res.json({
+            msg: `Fixed gamification for ${updatedCount} staff members`,
+            results: results
+        });
+        
+    } catch (err) {
+        console.error('❌ Error fixing gamification:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Debug route to check all complaints
+router.get('/debug/all', async (req, res) => {
+    try {
+        const complaints = await Complaint.find({})
+            .populate('submittedBy', 'name')
+            .select('title category department city status assignedTo assignedUsers')
+            .sort({ createdAt: -1 });
+        
+        console.log(`[Debug] Total complaints in database: ${complaints.length}`);
+        res.json(complaints);
+    } catch (err) {
+        console.error('Debug fetch error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Staff Dashboard
 router.get('/staff', auth, authorize(['staff', 'admin']), async(req, res) => {
     try {
@@ -232,19 +372,30 @@ router.get('/staff', auth, authorize(['staff', 'admin']), async(req, res) => {
             }
         };
 
-        // Apply city-based filtering with new assignedUsers field
+        // Apply role-based filtering with city and department restrictions
         if (currentUser.role === 'staff') {
-            // Staff members see complaints where they are in assignedUsers or from their city
+            console.log(`[Staff Filter] User: ${currentUser.name}, City: ${currentUser.city}, Department: ${currentUser.department}`);
+            
+            // Staff members see complaints where:
+            // 1. They are specifically assigned (assignedUsers or assignedTo)
+            // 2. OR complaints from their city AND same department
             filter.$or = [
-                { city: currentUser.city },
-                { assignedUsers: req.user.id }, // New: Check if user is in assignedUsers array
-                { assignedTo: req.user.id } // Legacy: Still check primary assignee
+                { assignedUsers: req.user.id }, // Specifically assigned to this staff
+                { assignedTo: req.user.id }, // Legacy: Primary assignee
+                { 
+                    $and: [
+                        { city: currentUser.city },
+                        { department: currentUser.department }
+                    ]
+                }
             ];
+            
+            console.log(`[Staff Filter] Applied filter:`, JSON.stringify(filter, null, 2));
         } else if (currentUser.role === 'admin' && currentUser.city !== 'Global') {
-            // City admin sees complaints from their city or where they are assigned
+            // City admin sees all complaints from their city (regardless of department)
             filter.$or = [
                 { city: currentUser.city },
-                { assignedUsers: req.user.id } // New: Check if admin is in assignedUsers array
+                { assignedUsers: req.user.id } // If specifically assigned
             ];
         }
         // Global admin sees all complaints (no additional filtering)
@@ -256,7 +407,40 @@ router.get('/staff', auth, authorize(['staff', 'admin']), async(req, res) => {
             .populate('assignedUsers', 'name role department city')
             .sort({createdAt: -1});
 
-        res.json(complaints);
+        console.log(`[Staff Filter] Found ${complaints.length} complaints for user ${currentUser.name}`);
+        
+        // Debug: Log each complaint's details
+        complaints.forEach((complaint, index) => {
+            console.log(`[Staff Filter] Complaint ${index + 1}:`, {
+                id: complaint._id,
+                title: complaint.title,
+                category: complaint.category,
+                department: complaint.department,
+                city: complaint.city,
+                assignedTo: complaint.assignedTo?._id,
+                assignedUsers: complaint.assignedUsers?.map(u => u._id)
+            });
+        });
+
+        // Calculate resolved complaints count for staff members
+        let resolvedCount = 0;
+        if (currentUser.role === 'staff') {
+            const resolvedFilter = {
+                status: 'RESOLVED',
+                $or: [
+                    { assignedTo: req.user.id },
+                    { assignedUsers: req.user.id }
+                ]
+            };
+            
+            resolvedCount = await Complaint.countDocuments(resolvedFilter);
+            console.log(`[Staff Stats] Resolved complaints count for ${currentUser.name}: ${resolvedCount}`);
+        }
+
+        res.json({
+            complaints,
+            resolvedCount: currentUser.role === 'staff' ? resolvedCount : undefined
+        });
     }
     catch(err){
         console.error('STAFF dashboard fetch error : ', err.message);
@@ -267,11 +451,20 @@ router.get('/staff', auth, authorize(['staff', 'admin']), async(req, res) => {
 
 // staff, admin updates the status of a complaint 
 router.put('/:id/status', auth, authorize(['staff', 'admin']), async(req, res) => {
+    console.log(`[Complaints] Status update request - ID: ${req.params.id}, Body:`, req.body);
+    
     const {status} = req.body;
     const complaintId = req.params.id;
 
+    // Validate MongoDB ObjectId format
+    if (!mongoose.Types.ObjectId.isValid(complaintId)) {
+        console.log(`[Complaints] Invalid ObjectId format: ${complaintId}`);
+        return res.status(400).json({msg : 'Invalid complaint ID format'});
+    }
+
     if(!['IN_PROGRESS', 'RESOLVED'].includes(status)){
-        return res.status(400).json({msg : 'Invalid status provided.'});
+        console.log(`[Complaints] Invalid status: ${status}`);
+        return res.status(400).json({msg : 'Invalid status provided. Must be IN_PROGRESS or RESOLVED'});
     }
 
     try{
@@ -304,16 +497,12 @@ router.put('/:id/status', auth, authorize(['staff', 'admin']), async(req, res) =
             hasAccess = complaint.city === currentUser.city || 
                        staffIds.some(id => id.equals(complaint.assignedTo));
         } else if (currentUser.role === 'staff') {
-            // Staff can access complaints from their city or assigned to them
-            const cityStaff = await User.find({ 
-                role: 'staff', 
-                city: currentUser.city 
-            }).select('_id');
-            const staffIds = cityStaff.map(staff => staff._id);
-            
-            hasAccess = complaint.city === currentUser.city ||
-                       staffIds.some(id => id.equals(complaint.assignedTo)) ||
-                       complaint.assignedTo?.equals(req.user.id);
+            // Staff can access complaints where:
+            // 1. They are specifically assigned
+            // 2. From their city AND same department
+            hasAccess = complaint.assignedTo?.equals(req.user.id) ||
+                       complaint.assignedUsers?.some(userId => userId.equals(req.user.id)) ||
+                       (complaint.city === currentUser.city && complaint.department === currentUser.department);
         }
 
         if (!hasAccess) {
@@ -336,8 +525,12 @@ router.put('/:id/status', auth, authorize(['staff', 'admin']), async(req, res) =
         // add bonus based on resolutiontime
         if(status === 'RESOLVED'){
             const staffId = updatedComplaint.assignedTo;
+            console.log(`[Complaints] Complaint resolved - Status: ${status}, AssignedTo: ${staffId}`);
             if(staffId){
-                updateLeaderboardPoints(staffId, updatedComplaint, 'RESOLUTION');
+                console.log(`[Complaints] Triggering gamification for staff: ${staffId}`);
+                await updateLeaderboardPoints(staffId, updatedComplaint, 'RESOLUTION');
+            } else {
+                console.log(`[Complaints] No staff assigned to complaint ${updatedComplaint._id}`);
             }
         }
         notifyCitizenOfStatusChange(updatedComplaint);
@@ -350,8 +543,30 @@ router.put('/:id/status', auth, authorize(['staff', 'admin']), async(req, res) =
         });
     }
     catch (err) {
-        console.error('Status update error: ', err.message);
-        res.status(500).send('Server error');
+        console.error('[Complaints] Status update error:', err.message);
+        console.error('[Complaints] Stack trace:', err.stack);
+        console.error('[Complaints] Request params:', req.params);
+        console.error('[Complaints] Request body:', req.body);
+        
+        if (err.name === 'CastError') {
+            return res.status(400).json({ 
+                msg: 'Invalid complaint ID format',
+                error: 'INVALID_OBJECT_ID',
+                complaintId: req.params.id 
+            });
+        }
+        
+        if (err.name === 'ValidationError') {
+            return res.status(400).json({ 
+                msg: 'Validation error', 
+                errors: Object.values(err.errors).map(e => e.message) 
+            });
+        }
+        
+        res.status(500).json({ 
+            msg: 'Server error during status update',
+            error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+        });
     }
 });
 
@@ -425,11 +640,41 @@ router.post('/:id/feedback', auth, authorize('citizen'), async(req, res) => {
 // heatmap logic
 router.get('/heatmap', auth, authorize(['staff', 'admin']), async(req, res) => {
     try{
-        // find all complaints not yet resolved (Open or In progress)
-        const complaintLocations = await Complaint.find({
-            status : {$in: ['OPEN', 'IN PROGRESS']}
-        })
-        .select('location status -_id'); // to retrieve only location coordinates and status
+        // Get the current user's details
+        const currentUser = await User.findById(req.user.id);
+        if (!currentUser) {
+            return res.status(404).json({ msg: 'User not found' });
+        }
+
+        // Build filter query - same logic as staff endpoint
+        let filter = {
+            status: { $in: ['OPEN', 'IN_PROGRESS'] }
+        };
+
+        // Apply role-based filtering
+        if (currentUser.role === 'staff') {
+            // Staff see complaints they're assigned to OR from their city+department
+            filter.$or = [
+                { assignedUsers: req.user.id },
+                { assignedTo: req.user.id },
+                { 
+                    $and: [
+                        { city: currentUser.city },
+                        { department: currentUser.department }
+                    ]
+                }
+            ];
+        } else if (currentUser.role === 'admin' && currentUser.city !== 'Global') {
+            // City admin sees complaints from their city
+            filter.$or = [
+                { city: currentUser.city },
+                { assignedUsers: req.user.id }
+            ];
+        }
+        // Global admin sees all complaints (no additional filtering)
+
+        const complaintLocations = await Complaint.find(filter)
+            .select('location status -_id'); // retrieve only location coordinates and status
 
         res.json(complaintLocations); // data returned as an array of geoJSON points.
     }

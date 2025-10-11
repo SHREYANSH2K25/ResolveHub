@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import LoadingSpinner from '../components/LoadingSpinner';
 import Leaderboard from '../components/Leaderboard';
 import GamificationStats from '../components/GamificationStats';
+import GamificationDashboard from '../components/GamificationDashboard';
 import { 
   UserPlus, 
   Users, 
@@ -497,10 +498,7 @@ const AdminDashboard = () => {
 
           {/* Gamification Tab Content */}
           {activeTab === 'gamification' && (
-            <div className="space-y-8">
-              <GamificationStats stats={gamificationStats} loading={loadingStats} />
-              <Leaderboard leaderboardData={leaderboardData} loading={loadingLeaderboard} />
-            </div>
+            <GamificationDashboard userRole="admin" />
           )}
 
         </div>

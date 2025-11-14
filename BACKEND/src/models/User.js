@@ -46,9 +46,6 @@ const UserSchema = new mongoose.Schema({
     topFixerBadge : {
         type : String,
         default : null ,
-        required : function() {
-            return this.role === 'staff'
-        }
     },
     department : {
         type : String,

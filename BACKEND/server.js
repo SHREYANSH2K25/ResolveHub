@@ -63,7 +63,7 @@ const initializeApp = async () => {
         'http://127.0.0.1:5175',
         'http://127.0.0.1:5176',
         process.env.FRONTEND_URL, // Production frontend URL (Vercel)
-        'https://resolvehub-frontend.vercel.app', // Default Vercel domain
+        'https://resolvehub-p39x.onrender.com', // Default Vercel domain
         /\.vercel\.app$/, // Allow all Vercel domains
         /\.onrender\.com$/, // Allow all Render static-site/web-service domains
     ].filter(Boolean); // Filters out undefined/null if FRONTEND_URL is not set

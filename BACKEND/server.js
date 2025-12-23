@@ -65,6 +65,7 @@ const initializeApp = async () => {
         process.env.FRONTEND_URL, // Production frontend URL (Vercel)
         'https://resolvehub-frontend.vercel.app', // Default Vercel domain
         /\.vercel\.app$/, // Allow all Vercel domains
+        /\.onrender\.com$/, // Allow all Render static-site/web-service domains
     ].filter(Boolean); // Filters out undefined/null if FRONTEND_URL is not set
 
     const corsOptions = {
@@ -75,7 +76,12 @@ const initializeApp = async () => {
             }
             
             // Check if the requesting origin is in the allowed list
-            if (allowedOrigins.includes(origin)) {
+            // Supports both exact-string matches and RegExp patterns.
+            const isAllowed = allowedOrigins.some((allowed) =>
+                allowed instanceof RegExp ? allowed.test(origin) : allowed === origin
+            );
+
+            if (isAllowed) {
                 callback(null, true);
             } else {
                 console.log('CORS blocked origin:', origin);

@@ -15,6 +15,8 @@ export default defineConfig({
   },
   preview: {
     port: 5174,
-    host: '0.0.0.0'
+    host: '0.0.0.0',
+    // Render assigns dynamic subdomains; allow them for vite preview deployments.
+    allowedHosts: ['.onrender.com']
   }
 })

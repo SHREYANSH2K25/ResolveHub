@@ -14,6 +14,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 // --------------------------------------------------------
 
+const MODEL_BASE_URL =
+    process.env.MODEL_BASE_URL ||
+    `http://127.0.0.1:${process.env.PORT || 5000}`;
+
 let tf;
 try {
     // Use a single TF runtime to avoid mixing tfjs + tfjs-node instances.
@@ -56,7 +60,7 @@ export const loadModels = async () => {
         // --- 2. Load BOTH Models ---
         // The big pre-trained base model (MobileNetV2) is fetched from the running server (port 3000)
        // In triageService.mjs:
-         mobilenetModel = await tf.loadGraphModel('http://localhost:5000/model/model.json');
+         mobilenetModel = await tf.loadGraphModel(`${MODEL_BASE_URL}/model/model.json`);
         console.log('ML Service: Base MobileNetV2 model loaded.');
 
         // Load your small, trained classification head

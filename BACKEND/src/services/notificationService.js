@@ -1,6 +1,6 @@
 import twilio from 'twilio'
 import sgMail from '@sendgrid/mail'
-import 'dotenv/config'
+import '../config/loadEnv.js'
 import {User} from '../models/User.js'
 
 // twilio client initialised for authentication
@@ -9,8 +9,13 @@ const twilioClient = twilio(
     process.env.TWILIO_AUTH_TOKEN
 )
 
-//sendgrid api key set for email authentications
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
+// sendgrid api key set for email authentications
+const sendgridApiKey = (process.env.SENDGRID_API_KEY || '').trim();
+if (sendgridApiKey) {
+    sgMail.setApiKey(sendgridApiKey);
+} else {
+    console.warn('SendGrid API key not configured. Email notifications will be disabled.');
+}
 
 // sending sms notifications
 export const sendSmsNotification = async(toPhoneNumber, message) => {

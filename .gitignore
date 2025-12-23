@@ -64,6 +64,9 @@ jspm_packages/
 .env.test.local
 .env.production.local
 
+# Local backend env file (do not commit)
+BACKEND/env
+
 # parcel-bundler cache
 .cache
 .parcel-cache

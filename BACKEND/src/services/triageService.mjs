@@ -14,14 +14,13 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 // --------------------------------------------------------
 
-let tf, tfn;
+let tf;
 try {
-  tf = await import('@tensorflow/tfjs');
-  tfn = await import('@tensorflow/tfjs-node');
+    // Use a single TF runtime to avoid mixing tfjs + tfjs-node instances.
+    tf = await import('@tensorflow/tfjs-node');
 } catch (error) {
   console.warn('⚠️  TensorFlow not available. ML features will be disabled.');
   tf = null;
-  tfn = null;
 }
 import * as fs from 'fs';
 import axios from 'axios'; 
@@ -38,7 +37,7 @@ let labels = [];
  * Pre-loads the models and labels into memory. Call this once when the server starts.
  */
 export const loadModels = async () => {
-    if (!tf || !tfn) {
+    if (!tf) {
         console.warn('⚠️  TensorFlow not available. ML models will not be loaded.');
         return;
     }
@@ -61,7 +60,7 @@ export const loadModels = async () => {
         console.log('ML Service: Base MobileNetV2 model loaded.');
 
         // Load your small, trained classification head
-        const classificationModelPath = tfn.io.fileSystem(path.join(__dirname, 'my_model', 'model.json'));
+        const classificationModelPath = tf.io.fileSystem(path.join(__dirname, 'my_model', 'model.json'));
         classificationModel = await tf.loadLayersModel(classificationModelPath);
         console.log('ML Service: Custom classification model loaded.');
 
@@ -75,18 +74,22 @@ export const loadModels = async () => {
 
 // Function to download an image from a URL and preprocess it
 const loadRemoteImage = async (url) => {
-    if (!url || !tf || !tfn) return null;
+    if (!url || !tf) return null;
 
     try {
-        const response = await axios.get(url, { responseType: 'arraybuffer' });
+        const response = await axios.get(url, { responseType: 'arraybuffer', timeout: 20_000 });
         const buffer = Buffer.from(response.data);
 
-        let tensor = tfn.node.decodeImage(buffer, 3);
-        
-        return tensor.resizeNearestNeighbor([IMG_HEIGHT, IMG_WIDTH])
-                     .toFloat()
-                     .div(tf.scalar(255.0))
-                     .expandDims();
+        const decoded = tf.node.decodeImage(buffer, 3);
+        const resized = tf.image.resizeNearestNeighbor(decoded, [IMG_HEIGHT, IMG_WIDTH]);
+        const normalized = resized.toFloat().div(255.0);
+        const batched = normalized.expandDims(0);
+
+        // Dispose intermediates; return only the batched tensor.
+        decoded.dispose();
+        resized.dispose();
+        normalized.dispose();
+        return batched;
     } catch (error) {
         console.error(`Error loading image from URL ${url}: ${error.message}`);
         return null;
@@ -101,7 +104,7 @@ const loadRemoteImage = async (url) => {
  * @returns {Promise<{category: string, confidence: number, assignedToId: string}>}
  */
 export const runTriageandAssign = async (mediaUrls, description) => {
-    if (!tf || !tfn || !mobilenetModel || !classificationModel || labels.length === 0) {
+    if (!tf || !mobilenetModel || !classificationModel || labels.length === 0) {
         console.warn('⚠️  ML models not available. Using fallback categorization.');
         // Fallback logic when ML is not available
         const ASSIGNED_STAFF_ID = '60c72b2f9011e00015b8b982'; 
@@ -115,7 +118,7 @@ export const runTriageandAssign = async (mediaUrls, description) => {
     // Placeholder assignment logic:
     const ASSIGNED_STAFF_ID = '60c72b2f9011e00015b8b982'; 
     
-    const urlsToProcess = mediaUrls.slice(0, 5); 
+    const urlsToProcess = Array.isArray(mediaUrls) ? mediaUrls.slice(0, 5) : [];
     let aggregatedPredictions = {};
 
     console.log(`Starting triage for ${urlsToProcess.length} images...`);
@@ -126,15 +129,20 @@ export const runTriageandAssign = async (mediaUrls, description) => {
 
         if (imageTensor) {
             const embeddings = mobilenetModel.predict(imageTensor);
-            const prediction = classificationModel.predict(embeddings); 
+            const prediction = classificationModel.predict(embeddings);
+
             const scores = await prediction.data();
-            const predictedIndex = prediction.as1D().argMax().dataSync()[0];
-            
+            const argMaxTensor = prediction.as1D().argMax();
+            const predictedIndex = argMaxTensor.dataSync()[0];
+            argMaxTensor.dispose();
+
             const predictedLabel = labels[predictedIndex];
-            const confidence = scores[predictedIndex];
-            
-            aggregatedPredictions[predictedLabel] = (aggregatedPredictions[predictedLabel] || 0) + confidence;
-            
+            const confidence = Number(scores[predictedIndex] ?? 0);
+
+            if (predictedLabel) {
+                aggregatedPredictions[predictedLabel] = (aggregatedPredictions[predictedLabel] || 0) + confidence;
+            }
+
             // Clean up tensors
             tf.dispose([imageTensor, embeddings, prediction]);
         }
@@ -144,6 +152,21 @@ export const runTriageandAssign = async (mediaUrls, description) => {
     let finalCategory = 'Uncategorized';
     let maxScore = -1;
     let totalScore = Object.values(aggregatedPredictions).reduce((a, b) => a + b, 0);
+
+    // If all images failed to load/decode, fall back to a simple keyword-based category.
+    if (totalScore === 0 && typeof description === 'string') {
+        const d = description.toLowerCase();
+        if (/(garbage|waste|trash|litter|clean|dirty|sewage|sanitation)/.test(d)) finalCategory = 'Sanitation';
+        else if (/(leak|pipe|drain|tap|water supply|blockage|clog)/.test(d)) finalCategory = 'Plumbing';
+        else if (/(wire|short circuit|power|electric|light|voltage)/.test(d)) finalCategory = 'Electrical';
+        else if (/(crack|building|bridge|road|pothole|collapse|structural)/.test(d)) finalCategory = 'Structural';
+        else finalCategory = 'Uncategorized';
+
+        return {
+            category: finalCategory,
+            confidence: 0,
+        };
+    }
 
     for (const label in aggregatedPredictions) {
         if (aggregatedPredictions[label] > maxScore) {

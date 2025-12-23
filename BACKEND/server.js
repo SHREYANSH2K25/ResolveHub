@@ -1,12 +1,12 @@
-import 'dotenv/config'
+import './src/config/loadEnv.js'
 import express from 'express'
 import mongoose from 'mongoose'
 import cors from 'cors'
 import session from 'express-session'
 import passport from 'passport'
-import path from 'path';
-import { fileURLToPath } from 'url';
-import { dirname } from 'path'; 
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import { dirname } from 'node:path'
 
 // Routes
 import authRoutes from "./src/routes/auth.js";
@@ -27,7 +27,20 @@ const PORT = process.env.PORT || 5000;
 // ---------------- Database Connection ----------------
 const connectDB = async () => {
   try {
-    await mongoose.connect(process.env.MONGO_URI);
+    const mongoUri =
+        process.env.MONGO_URI ||
+        process.env.MONGODB_URI ||
+        process.env.MONGODB_URL ||
+        process.env.DATABASE_URL;
+
+    if (!mongoUri || typeof mongoUri !== 'string') {
+        console.error(
+            'MongoDB connection error: missing MongoDB URI. Set MONGO_URI (or MONGODB_URI) in BACKEND/.env.'
+        );
+        process.exit(1);
+    }
+
+    await mongoose.connect(mongoUri);
     console.log("MongoDB connected successfully");
   } catch (err) {
     console.error("MongoDB connection error : ", err.message);
